@@ -1,0 +1,5 @@
+# Platform-specific FFmpeg setup is intentionally NOT hard-coded here.
+# Cargo's [env] table is global, so a Windows FFMPEG_DIR/LIBCLANG_PATH would
+# break macOS builds. Use:
+#   Windows: scripts/build-windows.ps1
+#   macOS:   scripts/build-macos.sh

@@ -1,0 +1,259 @@
+use gpui_kit::prelude::FluentBuilder;
+use gpui_kit::*;
+
+use crate::*;
+
+pub(crate) const ICON_TRACKS: &str = r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke='#000' stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="2"/><circle cx="6" cy="12" r="2"/><circle cx="6" cy="18" r="2"/><path d="M11 6h9"/><path d="M11 12h9"/><path d="M11 18h9"/></svg>"#;
+// Toolbar icons redrawn as SVG from Tracker's bitmap icons.
+pub(crate) const ICON_MOVE: &str = r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke='#000' stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18"/><path d="M3 12h18"/><path d="m9 6 3-3 3 3"/><path d="m9 18 3 3 3-3"/><path d="m6 9-3 3 3 3"/><path d="m18 9 3 3-3 3"/></svg>"#;
+pub(crate) const ICON_RULER: &str = r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke='#000' stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m3 17 14-14 4 4L7 21l-4-4Z"/><path d="m7 13 2 2"/><path d="m10 10 2 2"/><path d="m13 7 2 2"/></svg>"#;
+pub(crate) const ICON_STEP: &str = r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke='#000' stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 5v14l9-7-9-7Z"/><path d="M18 5v14"/></svg>"#;
+pub(crate) const ICON_TARGET: &str = r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke='#000' stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2.2"/><path d="M12 2v3"/><path d="M12 19v3"/><path d="M2 12h3"/><path d="M19 12h3"/></svg>"#;
+pub(crate) const ICON_REFRESH: &str = r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke='#000' stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 1-15.5 6.2L3 16"/><path d="M3 21v-5h5"/><path d="M3 12a9 9 0 0 1 15.5-6.2L21 8"/><path d="M21 3v5h-5"/></svg>"#;
+pub(crate) const ICON_FIRST: &str = r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke='#000' stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M19 5v14"/><path d="m6 5 8 7-8 7V5Z"/></svg>"#;
+pub(crate) const ICON_LAST: &str = r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke='#000' stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 5v14"/><path d="m18 5-8 7 8 7V5Z"/></svg>"#;
+pub(crate) const ICON_BACK10: &str = r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke='#000' stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m11 17-5-5 5-5"/><path d="m18 17-5-5 5-5"/></svg>"#;
+pub(crate) const ICON_FWD10: &str = r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke='#000' stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m6 7 5 5-5 5"/><path d="m13 7 5 5-5 5"/></svg>"#;
+pub(crate) const ICON_BACK1: &str = r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke='#000' stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>"#;
+pub(crate) const ICON_FWD1: &str = r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke='#000' stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>"#;
+pub(crate) const ICON_PLAY: &str = r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke='#000' stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 5v14l11-7Z"/></svg>"#;
+pub(crate) const ICON_PAUSE: &str = r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke='#000' stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 5v14"/><path d="M16 5v14"/></svg>"#;
+pub(crate) const ICON_ORIGIN: &str = r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke='#000' stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18"/><path d="M3 12h18"/><circle cx="12" cy="12" r="3.2"/></svg>"#;
+pub(crate) const ICON_ORIGIN_OFFSET: &str = r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke='#000' stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V5h15"/><path d="M10 15h8"/><path d="m15 12 3 3-3 3"/></svg>"#;
+pub(crate) const ICON_AXES: &str = r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke='#000' stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4v16h16"/><path d="M4 12h16"/><path d="M12 4v16"/><path d="M8 4v2"/><path d="M16 4v2"/><path d="M4 8h2"/><path d="M4 16h2"/></svg>"#;
+pub(crate) const ICON_TAPE: &str = r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke='#000' stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 19 19 5"/><circle cx="5" cy="19" r="2"/><circle cx="19" cy="5" r="2"/><path d="m9 13 2 2"/><path d="m12 10 2 2"/></svg>"#;
+pub(crate) const ICON_PROTRACTOR: &str = r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke='#000' stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 17a8 8 0 0 1 16 0"/><path d="M12 17V9"/><path d="M6 17h12"/><path d="m8 12-1 1"/><path d="M12 9v2"/><path d="m16 12 1 1"/></svg>"#;
+pub(crate) const ICON_CIRCLE_FIT: &str = r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke='#000' stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><circle cx="4" cy="12" r="1.3"/><circle cx="20" cy="12" r="1.3"/><circle cx="12" cy="4" r="1.3"/></svg>"#;
+
+pub(crate) struct TooltipLabel {
+    text: &'static str,
+}
+
+impl Render for TooltipLabel {
+    fn render(&mut self, _window: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {
+        div()
+            .px_2()
+            .py_1()
+            .rounded_sm()
+            .bg(c(0x152238))
+            .border_1()
+            .border_color(c(0x2a3b55))
+            .text_xs()
+            .text_color(c(0xdbe6f5))
+            .child(self.text)
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn icon_button(
+    id: &'static str,
+    icon: &'static str,
+    tooltip: &'static str,
+    button_size: f32,
+    icon_size: f32,
+    active: bool,
+    enabled: bool,
+    cx: &mut Context<Probe>,
+    action: impl Fn(&mut Probe, &mut Context<Probe>) + 'static,
+) -> AnyElement {
+    let icon_color = if !enabled {
+        c(0x4a5a73)
+    } else if active {
+        c(0x8ecbff)
+    } else {
+        c(0x9fb2cc)
+    };
+    div()
+        .id(id)
+        .flex_none()
+        .w(px(button_size))
+        .h(px(button_size))
+        .flex()
+        .items_center()
+        .justify_center()
+        .rounded_sm()
+        .bg(if active {
+            c(0x1b2b45)
+        } else {
+            c(0x000000).alpha(0.0)
+        })
+        .text_color(icon_color)
+        .when(enabled, |this| {
+            this.cursor_pointer()
+                .hover(|style| style.bg(c(0x152238)))
+                .tooltip(move |_window, cx| cx.new(|_| TooltipLabel { text: tooltip }).into())
+                .on_mouse_down(
+                    MouseButton::Left,
+                    cx.listener(move |this, _ev, _window, cx| {
+                        this.state.borrow_mut().menu_open = None;
+                        action(this, cx);
+                        cx.notify();
+                    }),
+                )
+        })
+        .child(
+            svg()
+                .data(icon.as_bytes())
+                .flex_none()
+                .w(px(icon_size))
+                .h(px(icon_size))
+                .text_color(icon_color),
+        )
+        .into_any_element()
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn group_icon_button(
+    id: &'static str,
+    icon: &'static str,
+    tooltip: &'static str,
+    group: ToolGroup,
+    active: bool,
+    enabled: bool,
+    cx: &mut Context<Probe>,
+    left_action: impl Fn(&mut Probe, &mut Context<Probe>) + 'static,
+) -> AnyElement {
+    let icon_color = if !enabled {
+        c(0x4a5a73)
+    } else if active {
+        c(0x8ecbff)
+    } else {
+        c(0x9fb2cc)
+    };
+    div()
+        .id(id)
+        .relative()
+        .flex_none()
+        .w(px(32.))
+        .h(px(32.))
+        .flex()
+        .items_center()
+        .justify_center()
+        .rounded_sm()
+        .bg(if active {
+            c(0x1b2b45)
+        } else {
+            c(0x000000).alpha(0.0)
+        })
+        .text_color(icon_color)
+        .when(enabled, |this| {
+            this.cursor_pointer()
+                .hover(|style| style.bg(c(0x152238)))
+                .tooltip(move |_window, cx| cx.new(|_| TooltipLabel { text: tooltip }).into())
+                .on_mouse_down(
+                    MouseButton::Left,
+                    cx.listener(move |this, _ev, _window, cx| {
+                        {
+                            let mut st = this.state.borrow_mut();
+                            st.tool_menu = None;
+                            st.suppress_next_stage_click();
+                        }
+                        left_action(this, cx);
+                        cx.notify();
+                    }),
+                )
+                .on_mouse_down(
+                    MouseButton::Right,
+                    cx.listener(move |this, ev: &MouseDownEvent, _window, cx| {
+                        let mut st = this.state.borrow_mut();
+                        st.menu_open = None;
+                        st.tool_menu = Some(group);
+                        st.tool_menu_pos = (f32::from(ev.position.x), f32::from(ev.position.y));
+                        drop(st);
+                        cx.notify();
+                    }),
+                )
+        })
+        .child(
+            svg()
+                .data(icon.as_bytes())
+                .flex_none()
+                .w(px(18.))
+                .h(px(18.))
+                .text_color(icon_color),
+        )
+        .when(enabled, |this| {
+            this.child(
+                div()
+                    .absolute()
+                    .right(px(1.))
+                    .bottom(px(1.))
+                    .text_color(icon_color)
+                    .child("▾"),
+            )
+        })
+        .into_any_element()
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn menu_icon_button(
+    id: &'static str,
+    icon: &'static str,
+    tooltip: &'static str,
+    group: ToolGroup,
+    active: bool,
+    enabled: bool,
+    cx: &mut Context<Probe>,
+) -> AnyElement {
+    let icon_color = if !enabled {
+        c(0x4a5a73)
+    } else if active {
+        c(0x8ecbff)
+    } else {
+        c(0x9fb2cc)
+    };
+    div()
+        .id(id)
+        .relative()
+        .flex_none()
+        .w(px(32.))
+        .h(px(32.))
+        .flex()
+        .items_center()
+        .justify_center()
+        .rounded_sm()
+        .bg(if active {
+            c(0x1b2b45)
+        } else {
+            c(0x000000).alpha(0.0)
+        })
+        .text_color(icon_color)
+        .when(enabled, |this| {
+            this.cursor_pointer()
+                .hover(|style| style.bg(c(0x152238)))
+                .tooltip(move |_window, cx| cx.new(|_| TooltipLabel { text: tooltip }).into())
+                .on_mouse_down(
+                    MouseButton::Left,
+                    cx.listener(move |this, ev: &MouseDownEvent, _window, cx| {
+                        let mut st = this.state.borrow_mut();
+                        st.menu_open = None;
+                        st.tool_menu = Some(group);
+                        st.tool_menu_pos = (
+                            f32::from(ev.position.x) + 8.0,
+                            f32::from(ev.position.y) + 8.0,
+                        );
+                        drop(st);
+                        cx.notify();
+                    }),
+                )
+        })
+        .child(
+            svg()
+                .data(icon.as_bytes())
+                .flex_none()
+                .w(px(18.))
+                .h(px(18.))
+                .text_color(icon_color),
+        )
+        .when(enabled, |this| {
+            this.child(
+                div()
+                    .absolute()
+                    .right(px(1.))
+                    .bottom(px(1.))
+                    .text_color(icon_color)
+                    .child("▾"),
+            )
+        })
+        .into_any_element()
+}

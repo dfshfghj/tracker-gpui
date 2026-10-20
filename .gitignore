@@ -1,0 +1,4 @@
+target
+docs/*.png.bak
+third_party/
+*.log

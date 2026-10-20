@@ -1,0 +1,266 @@
+name: Build tracker-gpui
+
+on:
+  push:
+  workflow_dispatch:
+    inputs:
+      ffmpeg_version:
+        description: "FFmpeg release version"
+        required: true
+        default: "9.0"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  FFMPEG_VERSION: ${{ github.event.inputs.ffmpeg_version || '9.0' }}
+  # Bump this when the FFmpeg build procedure changes but the configure
+  # script contents do not.
+  FFMPEG_CACHE_VERSION: "1"
+  CARGO_TERM_COLOR: always
+
+jobs:
+  windows-ffmpeg:
+    name: FFmpeg Windows x86_64 (cached)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Restore minimal FFmpeg cache
+        id: ffmpeg-cache
+        uses: actions/cache@v4
+        with:
+          path: prefix
+          key: ffmpeg-windows-x86_64-${{ env.FFMPEG_VERSION }}-v${{ env.FFMPEG_CACHE_VERSION }}-${{ hashFiles('scripts/configure-ffmpeg-minimal.sh', 'scripts/make-msvc-import-libs.py') }}
+      - name: Install cross toolchain
+        if: steps.ffmpeg-cache.outputs.cache-hit != 'true'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential curl xz-utils nasm pkg-config \
+            gcc-mingw-w64-x86-64 binutils-mingw-w64-x86-64 llvm
+          if ! command -v llvm-dlltool >/dev/null 2>&1; then
+            tool="$(command -v llvm-dlltool-18 || command -v llvm-dlltool-19 || true)"
+            if [ -z "$tool" ]; then
+              tool="$(find /usr/lib/llvm-* -name llvm-dlltool 2>/dev/null | head -n1)"
+            fi
+            if [ -n "$tool" ]; then
+              sudo ln -sf "$tool" /usr/local/bin/llvm-dlltool
+            else
+              echo "llvm-dlltool not found; falling back to MinGW dlltool" >&2
+            fi
+          fi
+      - name: Download FFmpeg
+        if: steps.ffmpeg-cache.outputs.cache-hit != 'true'
+        run: |
+          curl -fsSL -o ffmpeg.tar.xz \
+            "https://ffmpeg.org/releases/ffmpeg-${FFMPEG_VERSION}.tar.xz"
+          tar -xf ffmpeg.tar.xz
+      - name: Configure
+        if: steps.ffmpeg-cache.outputs.cache-hit != 'true'
+        working-directory: ffmpeg-${{ env.FFMPEG_VERSION }}
+        run: |
+          ../scripts/configure-ffmpeg-minimal.sh \
+            --prefix="$PWD/../prefix" \
+            --enable-cross-compile \
+            --target-os=mingw32 \
+            --arch=x86_64 \
+            --cross-prefix=x86_64-w64-mingw32- \
+            --disable-pthreads \
+            --enable-w32threads \
+            --extra-ldflags="-static-libgcc"
+      - name: Build
+        if: steps.ffmpeg-cache.outputs.cache-hit != 'true'
+        run: make -C "ffmpeg-${FFMPEG_VERSION}" -j"$(nproc)"
+      - name: Install
+        if: steps.ffmpeg-cache.outputs.cache-hit != 'true'
+        run: make -C "ffmpeg-${FFMPEG_VERSION}" install
+      - name: Check DLL dependencies
+        if: steps.ffmpeg-cache.outputs.cache-hit != 'true'
+        run: |
+          if x86_64-w64-mingw32-objdump -p prefix/bin/*.dll |
+            grep -E 'DLL Name: (libwinpthread|libgcc|libstdc|libssp)'; then
+            echo "FFmpeg DLLs depend on the MinGW runtime; adjust configure flags" >&2
+            exit 1
+          fi
+      - name: Generate MSVC import libraries
+        if: steps.ffmpeg-cache.outputs.cache-hit != 'true'
+        run: python3 scripts/make-msvc-import-libs.py prefix/bin prefix/lib
+      - name: Collect licenses
+        if: steps.ffmpeg-cache.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p prefix/licenses
+          cp "ffmpeg-${FFMPEG_VERSION}"/COPYING* prefix/licenses/
+      - name: Package FFmpeg development files
+        run: |
+          rm -rf dist/ffmpeg
+          mkdir -p dist/ffmpeg
+          cp -R prefix/include prefix/lib prefix/bin prefix/licenses dist/ffmpeg/
+          cat > dist/ffmpeg/README.txt <<'EOF'
+Minimal FFmpeg 9 shared build for Tracker GPUI (Windows x86_64).
+Built with LGPL 2.1+, GPL/nonfree disabled.
+Enabled: mov/matroska/avi/flv/asf/mpeg/mpegts/mpegvideo/ogg demuxers,
+H.264/HEVC/MPEG-4/MPEG-1/2/MJPEG/ProRes/VP8/VP9/AV1/Theora/WMV/VC-1/DV and
+common lossless decoders. Audio is parsed but not decoded. No filters,
+encoders, muxers, programs, network protocols, or hardware acceleration.
+EOF
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ffmpeg-windows-x86_64
+          path: dist/ffmpeg
+          retention-days: 14
+
+  windows-app:
+    name: Windows x86_64 release app
+    needs: windows-ffmpeg
+    runs-on: windows-latest
+    env:
+      FFMPEG_DIR: ${{ github.workspace }}/ffmpeg
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download minimal FFmpeg
+        uses: actions/download-artifact@v4
+        with:
+          name: ffmpeg-windows-x86_64
+          path: ffmpeg
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: windows-release-${{ env.FFMPEG_VERSION }}-${{ env.FFMPEG_CACHE_VERSION }}-${{ hashFiles('scripts/configure-ffmpeg-minimal.sh') }}
+      - name: Ensure libclang is available
+        shell: pwsh
+        run: |
+          if (!(Test-Path 'C:\Program Files\LLVM\bin\libclang.dll')) {
+            choco install llvm --no-progress -y
+          }
+      - name: Build release
+        env:
+          LIBCLANG_PATH: C:\Program Files\LLVM\bin
+        run: cargo build --release
+      - name: Package app
+        shell: pwsh
+        run: |
+          $dist = Join-Path $PWD 'dist\tracker-gpui-windows-x86_64'
+          New-Item -ItemType Directory -Force -Path $dist | Out-Null
+          Copy-Item 'target\release\tracker-gpui.exe' $dist
+          $required = @('avcodec', 'avformat', 'avutil', 'swscale', 'swresample')
+          Get-ChildItem (Join-Path $env:FFMPEG_DIR 'bin\*.dll') |
+            Where-Object { $required -contains ($_.BaseName -replace '-\d+$', '') } |
+            ForEach-Object { Copy-Item $_.FullName $dist }
+          if (Test-Path (Join-Path $env:FFMPEG_DIR 'licenses')) {
+            Copy-Item (Join-Path $env:FFMPEG_DIR 'licenses') (Join-Path $dist 'licenses') -Recurse
+          }
+          @"
+          Tracker GPUI (Windows x86_64)
+          Run tracker-gpui.exe. Keep the FFmpeg DLLs next to the executable.
+          FFmpeg is LGPL 2.1+; see the licenses folder.
+          "@ | Set-Content -Encoding UTF8 (Join-Path $dist 'README.txt')
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tracker-gpui-windows-x86_64
+          path: dist/tracker-gpui-windows-x86_64
+          retention-days: 14
+
+  macos-app:
+    name: macOS ${{ matrix.arch }} release app
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-14
+            arch: arm64
+          - runner: macos-15-intel
+            arch: x86_64
+    runs-on: ${{ matrix.runner }}
+    env:
+      FFMPEG_DIR: ${{ github.workspace }}/prefix
+      RUSTFLAGS: "-C link-arg=-Wl,-rpath,@executable_path/../Frameworks"
+    steps:
+      - uses: actions/checkout@v4
+      - name: Restore minimal FFmpeg cache
+        id: ffmpeg-cache
+        uses: actions/cache@v4
+        with:
+          path: prefix
+          key: ffmpeg-macos-${{ matrix.arch }}-${{ env.FFMPEG_VERSION }}-v${{ env.FFMPEG_CACHE_VERSION }}-${{ hashFiles('scripts/configure-ffmpeg-minimal.sh') }}
+      - name: Install build tools
+        run: |
+          export HOMEBREW_NO_AUTO_UPDATE=1
+          brew install nasm pkg-config llvm
+          echo "LIBCLANG_PATH=$(brew --prefix llvm)/lib" >> "$GITHUB_ENV"
+      - name: Download FFmpeg
+        if: steps.ffmpeg-cache.outputs.cache-hit != 'true'
+        run: |
+          curl -fsSL -o ffmpeg.tar.xz \
+            "https://ffmpeg.org/releases/ffmpeg-${FFMPEG_VERSION}.tar.xz"
+          tar -xf ffmpeg.tar.xz
+      - name: Configure
+        if: steps.ffmpeg-cache.outputs.cache-hit != 'true'
+        working-directory: ffmpeg-${{ env.FFMPEG_VERSION }}
+        run: |
+          ../scripts/configure-ffmpeg-minimal.sh \
+            --prefix="$PWD/../prefix" \
+            --cc=clang \
+            --install-name-dir='@rpath'
+      - name: Build FFmpeg
+        if: steps.ffmpeg-cache.outputs.cache-hit != 'true'
+        run: make -C "ffmpeg-${FFMPEG_VERSION}" -j"$(sysctl -n hw.ncpu)"
+      - name: Install FFmpeg
+        if: steps.ffmpeg-cache.outputs.cache-hit != 'true'
+        run: make -C "ffmpeg-${FFMPEG_VERSION}" install
+      - name: Collect FFmpeg licenses
+        if: steps.ffmpeg-cache.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p prefix/licenses
+          cp "ffmpeg-${FFMPEG_VERSION}"/COPYING* prefix/licenses/
+      - name: Package FFmpeg development files
+        run: |
+          rm -rf dist/ffmpeg
+          mkdir -p dist/ffmpeg
+          cp -R prefix/include prefix/lib prefix/licenses dist/ffmpeg/
+          cat > dist/ffmpeg/README.txt <<'EOF'
+Minimal FFmpeg 9 shared build for Tracker GPUI (macOS).
+Built with LGPL 2.1+, GPL/nonfree disabled.
+Dylib install names use @rpath; link the app with an rpath (or
+DYLD_FALLBACK_LIBRARY_PATH=$FFMPEG_DIR/lib for local testing).
+EOF
+      - uses: actions/upload-artifact@v4
+        if: steps.ffmpeg-cache.outputs.cache-hit != 'true'
+        with:
+          name: ffmpeg-macos-${{ matrix.arch }}
+          path: dist/ffmpeg
+          retention-days: 14
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: macos-${{ matrix.arch }}-release-${{ env.FFMPEG_VERSION }}-${{ env.FFMPEG_CACHE_VERSION }}-${{ hashFiles('scripts/configure-ffmpeg-minimal.sh') }}
+      - name: Build release app
+        run: cargo build --release
+      - name: Package .app
+        run: |
+          APP="dist/Tracker GPUI.app"
+          rm -rf "$APP"
+          mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Frameworks" "$APP/Contents/Resources/licenses"
+          cp target/release/tracker-gpui "$APP/Contents/MacOS/tracker-gpui"
+          cp packaging/macos/Info.plist "$APP/Contents/Info.plist"
+          for name in avcodec avformat avutil swscale swresample; do
+            for lib in "$FFMPEG_DIR"/lib/lib${name}*.dylib; do
+              if [ -e "$lib" ]; then
+                cp -L "$lib" "$APP/Contents/Frameworks/"
+              fi
+            done
+          done
+          cp -R "$FFMPEG_DIR/licenses/"* "$APP/Contents/Resources/licenses/"
+          for lib in "$APP/Contents/Frameworks/"*.dylib; do
+            install_name_tool -add_rpath @loader_path "$lib" 2>/dev/null || true
+          done
+          codesign --force --deep --sign - "$APP"
+          ditto -c -k --keepParent "$APP" "dist/tracker-gpui-macos-${{ matrix.arch }}.zip"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tracker-gpui-macos-${{ matrix.arch }}
+          path: dist/tracker-gpui-macos-${{ matrix.arch }}.zip
+          retention-days: 14

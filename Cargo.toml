@@ -1,0 +1,41 @@
+[package]
+name = "tracker-gpui"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+gpui-kit = "0.7.3"
+gpui-component = "0.7.3"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+directories = "6"
+libc = "0.2"
+ffmpeg-the-third = { version = "=6.0.0", default-features = false, features = [
+  "codec",
+  "format",
+  "software-scaling",
+] }
+image = { version = "0.25.1", default-features = false, features = ["jpeg", "png"] }
+smallvec = "1"
+raw-window-handle = "0.6"
+
+# gpui-pre-util 0.3.9 uses the still-unstable `slice::as_array`.
+# Local patch keeps the demo building on stable Rust.
+[patch.crates-io]
+gpui-pre-util = { path = "vendor/gpui-pre-util" }
+gpui-pre = { path = "vendor/gpui-pre" }
+gpui-base = { path = "vendor/gpui-base" }
+
+[profile.dev]
+opt-level = 1
+
+[profile.dev.package."*"]
+opt-level = 2
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+debug = false
+strip = "symbols"
+incremental = false
