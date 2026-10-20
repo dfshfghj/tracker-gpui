@@ -63,7 +63,7 @@ jobs:
         if: steps.ffmpeg-cache.outputs.cache-hit != 'true'
         working-directory: ffmpeg-${{ env.FFMPEG_VERSION }}
         run: |
-          ../scripts/configure-ffmpeg-minimal.sh \
+          bash ../scripts/configure-ffmpeg-minimal.sh \
             --prefix="$PWD/../prefix" \
             --enable-cross-compile \
             --target-os=mingw32 \
@@ -201,7 +201,7 @@ jobs:
         if: steps.ffmpeg-cache.outputs.cache-hit != 'true'
         working-directory: ffmpeg-${{ env.FFMPEG_VERSION }}
         run: |
-          ../scripts/configure-ffmpeg-minimal.sh \
+          bash ../scripts/configure-ffmpeg-minimal.sh \
             --prefix="$PWD/../prefix" \
             --cc=clang \
             --install-name-dir='@rpath'
