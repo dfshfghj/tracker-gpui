@@ -100,13 +100,13 @@ jobs:
           mkdir -p dist/ffmpeg
           cp -R prefix/include prefix/lib prefix/bin prefix/licenses dist/ffmpeg/
           cat > dist/ffmpeg/README.txt <<'EOF'
-Minimal FFmpeg 9 shared build for Tracker GPUI (Windows x86_64).
-Built with LGPL 2.1+, GPL/nonfree disabled.
-Enabled: mov/matroska/avi/flv/asf/mpeg/mpegts/mpegvideo/ogg demuxers,
-H.264/HEVC/MPEG-4/MPEG-1/2/MJPEG/ProRes/VP8/VP9/AV1/Theora/WMV/VC-1/DV and
-common lossless decoders. Audio is parsed but not decoded. No filters,
-encoders, muxers, programs, network protocols, or hardware acceleration.
-EOF
+          Minimal FFmpeg 9 shared build for Tracker GPUI (Windows x86_64).
+          Built with LGPL 2.1+, GPL/nonfree disabled.
+          Enabled: mov/matroska/avi/flv/asf/mpeg/mpegts/mpegvideo/ogg demuxers,
+          H.264/HEVC/MPEG-4/MPEG-1/2/MJPEG/ProRes/VP8/VP9/AV1/Theora/WMV/VC-1/DV and
+          common lossless decoders. Audio is parsed but not decoded. No filters,
+          encoders, muxers, programs, network protocols, or hardware acceleration.
+          EOF
       - uses: actions/upload-artifact@v4
         with:
           name: ffmpeg-windows-x86_64
@@ -222,11 +222,11 @@ EOF
           mkdir -p dist/ffmpeg
           cp -R prefix/include prefix/lib prefix/licenses dist/ffmpeg/
           cat > dist/ffmpeg/README.txt <<'EOF'
-Minimal FFmpeg 9 shared build for Tracker GPUI (macOS).
-Built with LGPL 2.1+, GPL/nonfree disabled.
-Dylib install names use @rpath; link the app with an rpath (or
-DYLD_FALLBACK_LIBRARY_PATH=$FFMPEG_DIR/lib for local testing).
-EOF
+          Minimal FFmpeg 9 shared build for Tracker GPUI (macOS).
+          Built with LGPL 2.1+, GPL/nonfree disabled.
+          Dylib install names use @rpath; link the app with an rpath (or
+          DYLD_FALLBACK_LIBRARY_PATH=$FFMPEG_DIR/lib for local testing).
+          EOF
       - uses: actions/upload-artifact@v4
         if: steps.ffmpeg-cache.outputs.cache-hit != 'true'
         with:
