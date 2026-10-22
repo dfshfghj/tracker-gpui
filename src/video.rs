@@ -216,6 +216,11 @@ pub struct FrameSource {
 }
 
 impl FrameSource {
+    #[cfg(feature = "vision")]
+    pub fn meta(&self) -> &VideoMeta {
+        &self.meta
+    }
+
     /// Opens an independent decoder so background analysis never competes with
     /// the UI decode thread.
     pub fn reader(&self) -> Result<FrameReader, String> {

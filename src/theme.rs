@@ -41,6 +41,17 @@ pub(crate) fn set_theme_mode(mode: ThemeMode) {
     );
 }
 
+/// Keep gpui-component widgets (notably TitleBar and its window controls)
+/// in the same light/dark mode as the app's own palette.
+pub(crate) fn sync_component_theme(cx: &mut App) {
+    let mode = if light_theme() {
+        gpui_component::ThemeMode::Light
+    } else {
+        gpui_component::ThemeMode::Dark
+    };
+    gpui_component::Theme::change(mode, None, cx);
+}
+
 #[cfg(target_os = "windows")]
 pub(crate) fn system_prefers_light() -> bool {
     use std::ffi::c_void;

@@ -50,6 +50,66 @@ pub struct PointMass {
     pub steps: BTreeMap<usize, PointMassStep>,
 }
 
+#[derive(Clone, Debug, PartialEq)]
+pub struct RigidBodyMarker {
+    pub id: u32,
+    /// Marker corners in the rigid-body coordinate system, in marker-side units.
+    pub corners: [[f32; 2]; 4],
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub enum RigidMaskMode {
+    #[default]
+    FixedShape,
+    PureMotion,
+}
+
+impl RigidMaskMode {
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::FixedShape => "固定形状",
+            Self::PureMotion => "纯运动掩膜",
+        }
+    }
+
+    pub fn tag(self) -> &'static str {
+        match self {
+            Self::FixedShape => "fixed",
+            Self::PureMotion => "pure",
+        }
+    }
+
+    pub fn from_tag(tag: &str) -> Self {
+        if tag == "pure" {
+            Self::PureMotion
+        } else {
+            Self::FixedShape
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct RigidBodyStep {
+    /// Image-plane angle in radians.
+    pub angle: f32,
+    /// Characteristic body size in image pixels (marker side for ArUco, ROI size for ORB).
+    pub scale: f32,
+    /// Visible marker count for ArUco, inlier count for ORB.
+    pub marker_count: u8,
+    /// Per-frame motion contour for the pure-mask mode, normalized by `scale`.
+    pub contour: Option<Vec<[f32; 2]>>,
+}
+
+#[derive(Clone, Debug, PartialEq, Default)]
+pub struct RigidBody {
+    pub dictionary: String,
+    pub markers: Vec<RigidBodyMarker>,
+    pub steps: BTreeMap<usize, RigidBodyStep>,
+    /// Reference contour centered on the body, normalized by the characteristic size.
+    pub contour: Vec<[f32; 2]>,
+    pub mask_mode: RigidMaskMode,
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum MeasurementKind {
     Tape,
@@ -136,6 +196,7 @@ pub struct Track {
     pub footprint: Footprint,
     pub keyframes: BTreeSet<usize>,
     pub kind: TrackKind,
+    pub rigid: Option<RigidBody>,
 }
 
 impl Track {
@@ -151,6 +212,62 @@ impl Track {
             footprint: Footprint::Diamond,
             keyframes: BTreeSet::new(),
             kind: TrackKind::PointMass(PointMass::default()),
+            rigid: None,
+        }
+    }
+
+    pub fn rigid_body(
+        id: u64,
+        name: impl Into<String>,
+        color: u32,
+        dictionary: impl Into<String>,
+        markers: Vec<RigidBodyMarker>,
+    ) -> Self {
+        let mut track = Self::point_mass(id, name, color);
+        track.rigid = Some(RigidBody {
+            dictionary: dictionary.into(),
+            markers,
+            steps: BTreeMap::new(),
+            contour: Vec::new(),
+            mask_mode: RigidMaskMode::FixedShape,
+        });
+        track
+    }
+
+    pub fn set_rigid_contour(&mut self, contour: Vec<[f32; 2]>) {
+        if let Some(rigid) = &mut self.rigid {
+            rigid.contour = contour;
+        }
+    }
+
+    pub fn set_rigid_mask_mode(&mut self, mode: RigidMaskMode) {
+        if let Some(rigid) = &mut self.rigid {
+            rigid.mask_mode = mode;
+        }
+    }
+
+    pub fn set_rigid_step_contour(&mut self, frame: usize, contour: Vec<[f32; 2]>) {
+        if let Some(rigid) = &mut self.rigid {
+            if let Some(step) = rigid.steps.get_mut(&frame) {
+                step.contour = Some(contour);
+            }
+        }
+    }
+
+    /// Manually rotates one rigid-body step. The new angle is unwrapped
+    /// relative to the stored angle so plots stay continuous.
+    pub fn set_rigid_angle(&mut self, frame: usize, angle: f32) {
+        if let Some(rigid) = &mut self.rigid {
+            if let Some(step) = rigid.steps.get_mut(&frame) {
+                let mut angle = angle;
+                while angle - step.angle > std::f32::consts::PI {
+                    angle -= std::f32::consts::TAU;
+                }
+                while angle - step.angle < -std::f32::consts::PI {
+                    angle += std::f32::consts::TAU;
+                }
+                step.angle = angle;
+            }
         }
     }
 
@@ -171,11 +288,46 @@ impl Track {
             footprint: Footprint::Crosshair,
             keyframes: BTreeSet::new(),
             kind: TrackKind::Measurement(MeasurementTrack::new(kind)),
+            rigid: None,
         }
     }
 
     pub fn is_point_mass(&self) -> bool {
         matches!(self.kind, TrackKind::PointMass(_))
+    }
+
+    pub fn is_rigid_body(&self) -> bool {
+        self.rigid.is_some() && self.is_point_mass()
+    }
+
+    pub fn rigid_step(&self, frame: usize) -> Option<&RigidBodyStep> {
+        self.rigid.as_ref()?.steps.get(&frame)
+    }
+
+    pub fn set_rigid_step(
+        &mut self,
+        frame: usize,
+        x: f32,
+        y: f32,
+        angle: f32,
+        scale: f32,
+        marker_count: u8,
+    ) {
+        if !self.is_point_mass() {
+            return;
+        }
+        self.set_point(frame, x, y);
+        if let Some(rigid) = &mut self.rigid {
+            rigid.steps.insert(
+                frame,
+                RigidBodyStep {
+                    angle,
+                    scale,
+                    marker_count,
+                    contour: None,
+                },
+            );
+        }
     }
 
     pub fn measurement_kind(&self) -> Option<MeasurementKind> {
@@ -193,6 +345,9 @@ impl Track {
     }
 
     pub fn kind_label(&self) -> &'static str {
+        if self.is_rigid_body() {
+            return "刚体";
+        }
         match &self.kind {
             TrackKind::PointMass(_) => "质点",
             TrackKind::Measurement(track) => track.kind.label(),
@@ -284,6 +439,9 @@ impl Track {
                 track.steps.remove(&frame);
             }
         }
+        if let Some(rigid) = &mut self.rigid {
+            rigid.steps.remove(&frame);
+        }
     }
 
     pub fn has_point(&self, frame: usize) -> bool {
@@ -297,6 +455,9 @@ impl Track {
         match &mut self.kind {
             TrackKind::PointMass(point_mass) => point_mass.steps.clear(),
             TrackKind::Measurement(track) => track.steps.clear(),
+        }
+        if let Some(rigid) = &mut self.rigid {
+            rigid.steps.clear();
         }
         self.keyframes.clear();
     }
@@ -335,6 +496,9 @@ impl Track {
             } else {
                 self.keyframes.retain(|key| *key <= frame);
             }
+        }
+        if let Some(rigid) = &mut self.rigid {
+            rigid.steps.retain(|key, _| *key <= frame);
         }
     }
 
@@ -535,6 +699,40 @@ mod tests {
         assert!(track.has_point(10));
         track.delete_point(10);
         assert!(!track.keyframes().any(|frame| frame == 10));
+    }
+
+    #[test]
+    fn rigid_body_keeps_center_and_pose() {
+        let mut track = Track::rigid_body(
+            1,
+            "Rigid",
+            0,
+            "DICT_4X4_50",
+            vec![RigidBodyMarker {
+                id: 0,
+                corners: [[-0.5, -0.5], [0.5, -0.5], [0.5, 0.5], [-0.5, 0.5]],
+            }],
+        );
+        track.set_rigid_step(2, 10.0, 20.0, 0.5, 100.0, 2);
+        assert!(track.is_point_mass());
+        assert!(track.is_rigid_body());
+        assert_eq!(track.kind_label(), "刚体");
+        assert_eq!(track.point_at(2), Some((10.0, 20.0)));
+        let step = track.rigid_step(2).unwrap();
+        assert!((step.angle - 0.5).abs() < 1e-6);
+        assert_eq!(step.marker_count, 2);
+        track.delete_point(2);
+        assert!(!track.has_point(2));
+        assert!(track.rigid_step(2).is_none());
+    }
+
+    #[test]
+    fn manual_rigid_angle_stays_continuous() {
+        let mut track = Track::rigid_body(1, "Rigid", 0, "MOTION", Vec::new());
+        track.set_rigid_step(0, 10.0, 20.0, 3.0, 20.0, 100);
+        track.set_rigid_angle(0, -3.0);
+        let angle = track.rigid_step(0).unwrap().angle;
+        assert!((angle - (std::f32::consts::TAU - 3.0)).abs() < 1e-5);
     }
 
     #[test]

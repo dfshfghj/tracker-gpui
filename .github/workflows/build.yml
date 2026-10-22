@@ -21,6 +21,8 @@ env:
   # Bump this when the FFmpeg build procedure changes but the configure
   # script contents do not.
   FFMPEG_CACHE_VERSION: "1"
+  OPENCV_VERSION: "4.12.0"
+  OPENCV_CACHE_VERSION: "1"
   CARGO_TERM_COLOR: always
 
 jobs:
@@ -126,10 +128,31 @@ jobs:
         with:
           name: ffmpeg-windows-x86_64
           path: ffmpeg
+      - name: Restore trimmed OpenCV cache
+        id: opencv-cache
+        uses: actions/cache@v4
+        with:
+          path: opencv-prefix
+          key: opencv-${{ env.OPENCV_VERSION }}-trim-windows-x86_64-v${{ env.OPENCV_CACHE_VERSION }}-${{ hashFiles('scripts/build-opencv-minimal.ps1') }}
+      - name: Build trimmed OpenCV
+        if: steps.opencv-cache.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: ./scripts/build-opencv-minimal.ps1 -Prefix "$PWD/opencv-prefix" -Version $env:OPENCV_VERSION
+      - name: Configure OpenCV
+        shell: pwsh
+        run: |
+          $prefix = Join-Path $PWD "opencv-prefix"
+          $include = Join-Path $prefix "include"
+          $lib = Get-ChildItem -Path $prefix -Recurse -Filter "opencv_world4120.lib" | Select-Object -First 1
+          if (-not $lib) { throw "opencv_world4120.lib not found after build" }
+          "OPENCV_PREFIX=$prefix" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
+          "OPENCV_INCLUDE_PATHS=$include" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
+          "OPENCV_LINK_PATHS=$($lib.DirectoryName)" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
+          "OPENCV_LINK_LIBS=opencv_world4120" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
         with:
-          key: windows-release-${{ env.FFMPEG_VERSION }}-${{ env.FFMPEG_CACHE_VERSION }}-${{ hashFiles('scripts/configure-ffmpeg-minimal.sh') }}
+          key: windows-release-${{ env.FFMPEG_VERSION }}-${{ env.FFMPEG_CACHE_VERSION }}-opencv-${{ env.OPENCV_VERSION }}-${{ env.OPENCV_CACHE_VERSION }}-${{ hashFiles('scripts/configure-ffmpeg-minimal.sh', 'scripts/build-opencv-minimal.ps1') }}
       - name: Ensure libclang is available
         shell: pwsh
         run: |
@@ -139,7 +162,7 @@ jobs:
       - name: Build release
         env:
           LIBCLANG_PATH: C:\Program Files\LLVM\bin
-        run: cargo build --release
+        run: cargo build --release --all-features
       - name: Package app
         shell: pwsh
         run: |
@@ -153,10 +176,19 @@ jobs:
           if (Test-Path (Join-Path $env:FFMPEG_DIR 'licenses')) {
             Copy-Item (Join-Path $env:FFMPEG_DIR 'licenses') (Join-Path $dist 'licenses') -Recurse
           }
+          $opencvDll = Get-ChildItem -Path $env:OPENCV_PREFIX -Recurse -Filter "opencv_world4120.dll" | Select-Object -First 1
+          if (-not $opencvDll) { throw "opencv_world4120.dll not found in $env:OPENCV_PREFIX" }
+          Copy-Item $opencvDll.FullName $dist
+          $opencvLicenseDir = Join-Path $dist 'licenses\opencv'
+          New-Item -ItemType Directory -Force -Path $opencvLicenseDir | Out-Null
+          $opencvLicense = Join-Path $env:OPENCV_PREFIX 'licenses\opencv'
+          if (Test-Path $opencvLicense) {
+            Copy-Item (Join-Path $opencvLicense '*') $opencvLicenseDir -Recurse
+          }
           @"
           Tracker GPUI (Windows x86_64)
-          Run tracker-gpui.exe. Keep the FFmpeg DLLs next to the executable.
-          FFmpeg is LGPL 2.1+; see the licenses folder.
+          Run tracker-gpui.exe. Keep the FFmpeg and OpenCV DLLs next to the executable.
+          FFmpeg is LGPL 2.1+; OpenCV is Apache-2.0. See the licenses folder.
           "@ | Set-Content -Encoding UTF8 (Join-Path $dist 'README.txt')
       - uses: actions/upload-artifact@v4
         with:
@@ -233,12 +265,28 @@ jobs:
           name: ffmpeg-macos-${{ matrix.arch }}
           path: dist/ffmpeg
           retention-days: 14
+      - name: Restore trimmed OpenCV cache
+        id: opencv-cache
+        uses: actions/cache@v4
+        with:
+          path: opencv-prefix
+          key: opencv-${{ env.OPENCV_VERSION }}-trim-macos-${{ matrix.arch }}-v${{ env.OPENCV_CACHE_VERSION }}-${{ hashFiles('scripts/build-opencv-minimal.sh') }}
+      - name: Build trimmed OpenCV
+        if: steps.opencv-cache.outputs.cache-hit != 'true'
+        run: bash scripts/build-opencv-minimal.sh "$PWD/opencv-prefix"
+      - name: Configure OpenCV
+        run: |
+          echo "OPENCV_PREFIX=$PWD/opencv-prefix" >> "$GITHUB_ENV"
+          echo "OPENCV_INCLUDE_PATHS=$PWD/opencv-prefix/include" >> "$GITHUB_ENV"
+          echo "OPENCV_LINK_PATHS=$PWD/opencv-prefix/lib" >> "$GITHUB_ENV"
+          echo "OPENCV_LINK_LIBS=opencv_world" >> "$GITHUB_ENV"
+          echo "DYLD_LIBRARY_PATH=$PWD/opencv-prefix/lib:${DYLD_LIBRARY_PATH:-}" >> "$GITHUB_ENV"
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
         with:
-          key: macos-${{ matrix.arch }}-release-${{ env.FFMPEG_VERSION }}-${{ env.FFMPEG_CACHE_VERSION }}-${{ hashFiles('scripts/configure-ffmpeg-minimal.sh') }}
+          key: macos-${{ matrix.arch }}-release-${{ env.FFMPEG_VERSION }}-${{ env.FFMPEG_CACHE_VERSION }}-opencv-${{ env.OPENCV_VERSION }}-${{ env.OPENCV_CACHE_VERSION }}-${{ hashFiles('scripts/configure-ffmpeg-minimal.sh', 'scripts/build-opencv-minimal.sh') }}
       - name: Build release app
-        run: cargo build --release
+        run: cargo build --release --all-features
       - name: Package .app
         run: |
           APP="dist/Tracker GPUI.app"
@@ -253,7 +301,15 @@ jobs:
               fi
             done
           done
+          for lib in "$OPENCV_PREFIX"/lib/libopencv_world*.dylib; do
+            if [ -e "$lib" ]; then
+              cp -L "$lib" "$APP/Contents/Frameworks/"
+            fi
+          done
           cp -R "$FFMPEG_DIR/licenses/"* "$APP/Contents/Resources/licenses/"
+          if [ -d "$OPENCV_PREFIX/licenses/opencv" ]; then
+            cp -R "$OPENCV_PREFIX/licenses/opencv" "$APP/Contents/Resources/licenses/opencv"
+          fi
           for lib in "$APP/Contents/Frameworks/"*.dylib; do
             install_name_tool -add_rpath @loader_path "$lib" 2>/dev/null || true
           done

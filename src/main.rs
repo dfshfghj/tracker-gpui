@@ -29,12 +29,42 @@ mod track;
 mod tracking;
 
 mod app;
+#[cfg(feature = "vision")]
+mod aruco_detect;
+#[cfg(feature = "vision")]
+mod background_build;
+#[cfg(feature = "vision")]
+mod aruco_math;
+#[cfg(feature = "vision")]
+mod aruco_pose;
 mod canvas;
+#[cfg(feature = "vision")]
+mod contour_math;
+#[cfg(feature = "vision")]
+mod contour_util;
 mod icons;
 mod menus;
 mod modals;
+#[cfg(feature = "vision")]
+mod motion_contour;
+#[cfg(feature = "vision")]
+mod motion_detect;
+#[cfg(feature = "vision")]
+mod motion_segment;
+#[cfg(feature = "vision")]
+mod motion_tracker;
+#[cfg(feature = "vision")]
+mod shape_model;
+#[cfg(feature = "vision")]
+mod orb_mask;
+#[cfg(feature = "vision")]
+mod orb_match;
+#[cfg(feature = "vision")]
+mod orb_track;
 mod plot_view;
 mod render;
+#[cfg(feature = "vision")]
+mod rigid;
 mod state;
 mod theme;
 mod tracker_modal;
@@ -45,7 +75,9 @@ use coords::{Calibration, CalibrationStep, ImageCoordSystem};
 use history::{EditSnapshot, UndoStack};
 use plot::{PlotConfig, PlotPoint, PlotSeries, PlotState, PlotVar};
 use prefs::Preferences;
-use track::{MeasurementKind, MeasurementStep, Track};
+use track::{
+    MeasurementKind, MeasurementStep, RigidBodyMarker, RigidBodyStep, RigidMaskMode, Track,
+};
 use tracking::{
     AutoTrackEnd, AutoTrackMessage, AutoTrackRequest, AutoTrackSettings, MaskShape, MatchQuality,
     SearchPolicy, StopPolicy, TemplateMatchBackend, TrackingBackend,
@@ -58,7 +90,8 @@ use menus::*;
 use modals::*;
 use plot_view::*;
 use project::{
-    DocProject, MeasurementProject, MeasurementStepProject, PointProject, ProjectFile, TrackProject,
+    DocProject, MeasurementProject, MeasurementStepProject, PointProject, ProjectFile,
+    RigidBodyMarkerProject, RigidBodyProject, RigidBodyStepProject, TrackProject,
 };
 use theme::*;
 use widgets::*;
@@ -88,6 +121,72 @@ enum ToolGroup {
     Calibration,
     Measurement,
     Tracks,
+    #[cfg(feature = "vision")]
+    PointDetect,
+    #[cfg(feature = "vision")]
+    RigidDetect,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum PointDetectMethod {
+    AutoTracker,
+    AutoDetect,
+}
+
+impl PointDetectMethod {
+    fn label(self) -> &'static str {
+        match self {
+            Self::AutoTracker => "AutoTracker",
+            Self::AutoDetect => "自动检测目标",
+        }
+    }
+
+    fn icon(self) -> &'static str {
+        match self {
+            Self::AutoTracker => ICON_TARGET,
+            Self::AutoDetect => ICON_MOTION,
+        }
+    }
+
+    fn tooltip(self) -> &'static str {
+        match self {
+            Self::AutoTracker => "质点检测：AutoTracker（右键切换方法）",
+            Self::AutoDetect => "质点检测：自动检测目标（右键切换方法）",
+        }
+    }
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum RigidDetectMethod {
+    Aruco,
+    Markerless,
+    MotionContour,
+}
+
+impl RigidDetectMethod {
+    fn label(self) -> &'static str {
+        match self {
+            Self::Aruco => "ArUco 刚体",
+            Self::Markerless => "无标记刚体",
+            Self::MotionContour => "运动轮廓",
+        }
+    }
+
+    fn icon(self) -> &'static str {
+        match self {
+            Self::Aruco => ICON_ARUCO,
+            Self::Markerless => ICON_ROI,
+            Self::MotionContour => ICON_CONTOUR,
+        }
+    }
+
+    fn tooltip(self) -> &'static str {
+        match self {
+            Self::Aruco => "刚体检测：ArUco（右键切换方法）",
+            Self::Markerless => "刚体检测：无标记刚体（右键切换方法）",
+            Self::MotionContour => "刚体检测：运动轮廓（右键切换方法）",
+        }
+    }
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -335,10 +434,35 @@ enum Drag {
     },
     AxisOrigin,
     AxisAngle,
+    RigidRoi {
+        start: (f32, f32),
+        current: (f32, f32),
+        frame: usize,
+        motion: bool,
+    },
+    RigidRotate {
+        track: usize,
+        frame: usize,
+        center: (f32, f32),
+    },
     AxisLine {
         start: (f32, f32),
         origin: [f64; 2],
     },
+}
+
+/// Screen-space position of the draggable orientation handle. The handle is
+/// kept at a usable size even for very small rigid bodies.
+pub(crate) fn rigid_rotation_handle(
+    center: (f32, f32),
+    angle: f32,
+    side: f32,
+) -> (f32, f32) {
+    let distance = (side * 0.8).max(36.0);
+    (
+        center.0 + angle.cos() * distance,
+        center.1 + angle.sin() * distance,
+    )
 }
 
 struct LoadingVideo {
@@ -452,6 +576,7 @@ struct State {
     tracker_fast: bool,
     tracker_thumbs: Option<TrackerThumbs>,
     tracker_thumbs_drop: Vec<Arc<RenderImage>>,
+    auto_detect_running: bool,
     drag: Option<Drag>,
     progress_rect: (f32, f32, f32, f32),
     scrubbing: bool,
@@ -459,6 +584,11 @@ struct State {
     right_open: bool,
     right_view: RightView,
     textures_to_drop: Vec<Arc<RenderImage>>,
+    rigid_roi_mode: bool,
+    motion_roi_mode: bool,
+    motion_pure_mask: bool,
+    point_detect_method: PointDetectMethod,
+    rigid_detect_method: RigidDetectMethod,
 }
 
 impl std::ops::Deref for State {
@@ -510,23 +640,25 @@ fn main() {
             ))
         })
         .unwrap_or((1360.0, 820.0));
-    gpui_kit::application().run(move |cx| {
-        gpui_kit::init(cx);
-        gpui_kit::open_window(
-            WindowOptions {
-                window_bounds: Some(WindowBounds::Windowed(Bounds {
-                    origin: point(px(10.), px(10.)),
-                    size: size(px(window_width), px(window_height)),
-                })),
-                focus: true,
-                ..Default::default()
-            },
-            cx,
-            |_window, cx| cx.new(Probe::new),
-        )
-        .expect("failed to open window");
-        cx.activate(true);
-    });
+    gpui_kit::application()
+        .with_assets(gpui_kit::assets::Assets)
+        .run(move |cx| {
+            gpui_kit::init(cx);
+            gpui_kit::open_window(
+                WindowOptions {
+                    window_bounds: Some(WindowBounds::Windowed(Bounds {
+                        origin: point(px(10.), px(10.)),
+                        size: size(px(window_width), px(window_height)),
+                    })),
+                    focus: true,
+                    ..gpui_component::TitleBar::window_options()
+                },
+                cx,
+                |_window, cx| cx.new(Probe::new),
+            )
+            .expect("failed to open window");
+            cx.activate(true);
+        });
 }
 
 #[cfg(test)]

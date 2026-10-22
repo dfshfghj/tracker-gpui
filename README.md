@@ -10,6 +10,7 @@ packet 索引，之后按帧请求、顺序解码或 seek 关键帧，不再让�
 - 解码：`ffmpeg-the-third` 6.0 / FFmpeg 9（Windows x64 shared；macOS Homebrew shared）
 - 视频：FFmpeg 解码 → swscale BGRA → `RenderImage`；轨迹/手柄用图元绘制
 - 工作区：目录树、多标签、视频左侧竖向工具栏、右侧可折叠属性/数据面板
+- 视觉（可选）：OpenCV 4.12（`vision` feature），用于运动目标检测；后续用于标定/去畸变、ArUco 刚体识别
 
 ## 构建（Windows / macOS）
 
@@ -40,6 +41,67 @@ brew install ffmpeg pkg-config
   `GWLP_HWNDPARENT`）；macOS 上使用 GPUI `WindowKind::Floating`
   （`NSFloatingWindowLevel`），保持位于主窗口上方。
 
+### OpenCV 与自动检测（vision feature）
+
+自动检测编译在可选的 `vision` feature 中。Windows 使用 OpenCV 4.12 官方预编译包：
+
+```powershell
+# 下载 opencv-4.12.0-windows.exe 后解压到 third_party/opencv
+7z x -y -othird_party/opencv opencv-4.12.0-windows.exe
+powershell -ExecutionPolicy Bypass -File scripts/build-windows.ps1 run
+```
+
+脚本检测到 `third_party/opencv/opencv/build/x64/vc16/lib/opencv_world4120.lib`
+后会自动追加 `--features vision`；`build.rs` 会把 `opencv_world4120.dll` 复制到
+`target/<profile>/`。OpenCV 在其他位置时，设置 `OPENCV_INCLUDE_PATHS`、
+`OPENCV_LINK_PATHS`、`OPENCV_LINK_LIBS` 后再执行 `cargo build --features vision`。
+
+CI 不再下载官方预编译包，而是用 `scripts/build-opencv-minimal.ps1` /
+`build-opencv-minimal.sh` 从源码编译裁剪版 OpenCV 4.12（core、imgproc、imgcodecs、
+video、objdetect、calib3d、features2d、flann，world 动态库），并缓存 install
+prefix；Windows 和 macOS 都以 `cargo build --release --all-features` 构建。
+macOS 会把裁剪版 OpenCV dylib 放进 `.app/Contents/Frameworks` 并参与签名。
+
+检测流程：MOG2 背景差分 + 帧差 → 形态学滤波 → 轮廓/质心 → 最近邻 + 速度预测关联；
+按轨迹长度、亮度、目标面积和画面中心位置选出主运动目标，批量写入新的质点轨道。
+适用于固定机位的球、滑块、摆、颗粒等；移动机位/强遮挡场景后续接 AI 检测。
+工具栏的扫描框按钮和 Tracks 菜单中的“自动检测运动目标”都可触发。
+
+测试钩子：`PROBE_VIDEO=... PROBE_AUTODETECT=1 PROBE_AUTODETECT_PREVIEW=...`
+同步检测并输出预览图；`PROBE_AUTODETECT_UI=1` 走异步 UI 路径。
+
+### 刚体轨道（ArUco / ORB / 运动轮廓）
+
+刚体轨道复用 `Track`：质心仍存为普通点，额外保存每帧的 `angle`、特征尺寸
+`scale` 和标记/内点数量；工程文件 v3 增加 `rigid_body` 节点和参考轮廓。
+
+- **ArUco 单/多标记**：工具栏的方块标记按钮或 Tracks → “ArUco 刚体打标”。
+  使用 `DICT_4X4_50`；第一帧检测到的标记定义刚体坐标系，同帧可见的其他标记
+  自动映射进同一坐标系，之后用所有可见标记角点做 RANSAC 相似变换。
+  标记需要在该帧清晰可见；单标记和同一参考帧内的多标记都可直接使用。
+- **无标记 ORB**：工具栏的框选按钮或 Tracks → “无标记刚体（框选）”，在视频上
+  拖一个矩形。ROI 内 ORB 特征作为参考，后续帧用 BFMatcher + ratio test +
+  `estimateAffinePartial2D`(RANSAC) 跟踪，并用预测区域掩膜排除背景；内点不足或
+  尺度/角度跳变会跳过该帧。适合有纹理的刚体；白球、纯色/光滑物体请用标记。
+  当前固定使用参考帧特征，长序列可能有轻微漂移；后续可加参考帧刷新。
+- **运动轮廓刚体**：工具栏的轮廓按钮或 Tracks → “运动轮廓刚体（框选）”。
+  Rust 默认使用 KNN 运动分割，在参考帧附近学习 50 帧的固定 canonical mask，
+  之后用位姿变换后的掩膜 IoU 匹配；角度在 θ/θ+π 两个真实峰上用弱的连续性
+  代价选分支，避免对称杆的 180° 跳变。Tracks 菜单可勾选
+  “纯运动掩膜（不学习固定形状）”，直接使用每帧运动轮廓（点跟踪，
+  遮挡时可能跟到夹具）。阴影不做特殊处理（可能被算进轮廓）。方法对比、
+  角度误差与不确定度的本地实验记录见 `docs/motion-segmentation.md`
+  （该目录未纳入版本控制）。
+- 属性面板显示刚体角度、特征尺寸和质量（内点/匹配度/标记数）；绘图可在 Y 轴
+  选择“角度”。
+- 合成测试：`cargo run --example synth_aruco --features vision` 生成
+  `target/aruco_single.mp4` 与 `target/aruco_multi.mp4`；`cargo run --example
+  synth_motion --features vision` 生成带柔和阴影、中途停顿的深色长条
+  `target/motion_rod.mp4`（均为 MPEG-4 编码）。
+- 测试钩子：`PROBE_RIGID=1`；`PROBE_ORB=1 PROBE_ORB_ROI=x,y,w,h
+  [PROBE_ORB_FRAME=n]`；`PROBE_MOTION=1 PROBE_MOTION_ROI=x,y,w,h
+  [PROBE_MOTION_FRAME=n]`。
+
 ### FFmpeg 裁剪（GitHub Actions）
 
 当前完整 Windows 共享构建中 `avcodec-63.dll` 约 87MB，加上 `avformat/avutil/
@@ -56,9 +118,10 @@ swscale/swresample` 合计约 113MB；其中编码器、muxer、filter、网络�
 - 构建：`.github/workflows/build.yml`（每次 push 自动运行）
   - Windows x86_64：Ubuntu 上 MinGW 交叉编译，生成 DLL/头文件，并用
     `scripts/make-msvc-import-libs.py` 生成 MSVC `.lib`；Windows app job
-    再用这些库编译 release 应用。
+    再下载 OpenCV 4.12、以 `--features vision` 编译 release 应用，并把
+    `opencv_world4120.dll` 与许可证一起打包。
   - macOS：Apple Silicon 与 Intel 分别构建，dylib 安装名为 `@rpath`，并在同
-    job 内打包成 `Tracker GPUI.app`。
+    job 内打包成 `Tracker GPUI.app`；当前 macOS 构建尚未启用 OpenCV/vision。
   - **FFmpeg 缓存**：`prefix/` 以 FFmpeg 版本 + 裁剪脚本 hash +
     `FFMPEG_CACHE_VERSION` 为 key；配置不变时直接复用，只有裁剪配置/版本变化
     才重新编译。**Rust 缓存**：`Swatinem/rust-cache` 缓存 Cargo registry 与 target。
@@ -401,13 +464,21 @@ duet.mp4 1920×1080 30.03fps 609 帧
 
 ## 尚未做
 
-- Track/Step 模型重构、PointMass、AutoTracker、自动步进（下一阶段主线）。
-- 轨道形式的坐标工具（CoordAxes/OffsetOrigin/ReferenceFrame、透视标定）——依赖 Track/Step。
-- 其他测量轨道、滤波/导数、Plot/World/Page 视图、完整数据导出。
-- macOS 后端（当前 FFmpeg 包和构建配置只验证了 Windows）。
+- 相机标定/去畸变、平面透视矫正、AprilTag 字典（当前 ArUco 固定 4×4_50）。
+- 无标记多刚体、自动候选框、长序列参考帧刷新（当前 ORB 固定参考帧）。
+- 运动轮廓的阴影/同色背景/大遮挡处理；模板回退目前只做平移（角度/尺度保持）。
+- AI 目标检测（RTMDet/YOLOX + ByteTrack/OC-SORT）与移动机位检测。
+- 光流、PTV/PIV、碰撞/事件检测、多相机 3D 三角化。
+- macOS 的 OpenCV 动态库打包与 `vision` feature、公证。
 - 硬件解码（FFmpeg d3d11va）；当前是 16 线程软解，1080p 30fps 已够用。
 - 视频滤镜栈、音频、摄像头录制、视频导出。
 - Tabset、标签右键菜单/重排、完整偏好设置对话框、关闭应用时的未保存确认。
 - 目录扫描目前同步执行；超大目录可以移到后台线程并显示进度。
 
 详细清单见 [TODO.md](TODO.md)。
+
+## 许可
+
+本项目以 GNU General Public License v3.0 或更高版本发布，详见 [LICENSE](LICENSE)。
+Windows 发行包内的 OpenCV 以 Apache-2.0 许可使用，FFmpeg 以 LGPL 2.1+ 使用，
+对应许可证随包附带。

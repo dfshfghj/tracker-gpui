@@ -1,6 +1,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
+use gpui_component::TITLE_BAR_HEIGHT;
 use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::*;
 
@@ -105,16 +106,13 @@ pub(crate) fn menu_bar(state: Rc<RefCell<State>>, cx: &mut Context<Probe>) -> im
         (MenuId::Help, "Help"),
     ];
     let mut bar = div()
-        .h(px(28.))
+        .h_full()
         .w_full()
         .flex_none()
         .flex()
         .items_center()
         .gap_1()
-        .px_2()
-        .bg(c(0x070b12))
-        .border_b_1()
-        .border_color(c(0x1d2a3d));
+        .px_2();
     for (index, (id, label)) in entries.into_iter().enumerate() {
         let menu_state = state.clone();
         bar = bar.child(
@@ -128,7 +126,7 @@ pub(crate) fn menu_bar(state: Rc<RefCell<State>>, cx: &mut Context<Probe>) -> im
                 .bg(if open == Some(id) {
                     c(0x16233a)
                 } else {
-                    c(0x070b12)
+                    c(0x000000).alpha(0.0)
                 })
                 .text_color(if open == Some(id) {
                     c(0xdbe6f5)
@@ -199,15 +197,19 @@ pub(crate) fn tool_menu_item(
 }
 
 pub(crate) fn tool_menu_popup(state: Rc<RefCell<State>>, cx: &mut Context<Probe>) -> AnyElement {
-    let (menu, x, y, tool) = {
+    let (menu, x, y, tool, point_method, rigid_method) = {
         let st = state.borrow();
         (
             st.tool_menu,
             st.tool_menu_pos.0,
             st.tool_menu_pos.1,
             st.tool,
+            st.point_detect_method,
+            st.rigid_detect_method,
         )
     };
+    #[cfg(not(feature = "vision"))]
+    let _ = (point_method, rigid_method);
     let Some(menu) = menu else {
         return div().into_any_element();
     };
@@ -271,6 +273,92 @@ pub(crate) fn tool_menu_popup(state: Rc<RefCell<State>>, cx: &mut Context<Probe>
                 cx,
                 |this, _cx| {
                     this.state.borrow_mut().select_tool(Tool::Circle);
+                },
+            ));
+        }
+        #[cfg(feature = "vision")]
+        ToolGroup::PointDetect => {
+            items.push(tool_menu_item(
+                PointDetectMethod::AutoTracker.label().to_string(),
+                point_method == PointDetectMethod::AutoTracker,
+                40,
+                cx,
+                |this, _cx| {
+                    let mut st = this.state.borrow_mut();
+                    st.point_detect_method = PointDetectMethod::AutoTracker;
+                    st.rigid_roi_mode = false;
+                    st.motion_roi_mode = false;
+                    st.status = Some(format!(
+                        "质点检测：{}（左键运行）",
+                        PointDetectMethod::AutoTracker.label()
+                    ));
+                },
+            ));
+            items.push(tool_menu_item(
+                PointDetectMethod::AutoDetect.label().to_string(),
+                point_method == PointDetectMethod::AutoDetect,
+                41,
+                cx,
+                |this, _cx| {
+                    let mut st = this.state.borrow_mut();
+                    st.point_detect_method = PointDetectMethod::AutoDetect;
+                    st.rigid_roi_mode = false;
+                    st.motion_roi_mode = false;
+                    st.status = Some(format!(
+                        "质点检测：{}（左键运行）",
+                        PointDetectMethod::AutoDetect.label()
+                    ));
+                },
+            ));
+        }
+        #[cfg(feature = "vision")]
+        ToolGroup::RigidDetect => {
+            items.push(tool_menu_item(
+                RigidDetectMethod::Aruco.label().to_string(),
+                rigid_method == RigidDetectMethod::Aruco,
+                50,
+                cx,
+                |this, _cx| {
+                    let mut st = this.state.borrow_mut();
+                    st.rigid_detect_method = RigidDetectMethod::Aruco;
+                    st.rigid_roi_mode = false;
+                    st.motion_roi_mode = false;
+                    st.status = Some(format!(
+                        "刚体检测：{}（左键运行）",
+                        RigidDetectMethod::Aruco.label()
+                    ));
+                },
+            ));
+            items.push(tool_menu_item(
+                RigidDetectMethod::Markerless.label().to_string(),
+                rigid_method == RigidDetectMethod::Markerless,
+                51,
+                cx,
+                |this, _cx| {
+                    let mut st = this.state.borrow_mut();
+                    st.rigid_detect_method = RigidDetectMethod::Markerless;
+                    st.rigid_roi_mode = false;
+                    st.motion_roi_mode = false;
+                    st.status = Some(format!(
+                        "刚体检测：{}（左键运行）",
+                        RigidDetectMethod::Markerless.label()
+                    ));
+                },
+            ));
+            items.push(tool_menu_item(
+                RigidDetectMethod::MotionContour.label().to_string(),
+                rigid_method == RigidDetectMethod::MotionContour,
+                52,
+                cx,
+                |this, _cx| {
+                    let mut st = this.state.borrow_mut();
+                    st.rigid_detect_method = RigidDetectMethod::MotionContour;
+                    st.rigid_roi_mode = false;
+                    st.motion_roi_mode = false;
+                    st.status = Some(format!(
+                        "刚体检测：{}（左键运行）",
+                        RigidDetectMethod::MotionContour.label()
+                    ));
                 },
             ));
         }
@@ -520,8 +608,9 @@ pub(crate) fn menu_popup(state: Rc<RefCell<State>>, cx: &mut Context<Probe>) -> 
                     id,
                     true,
                     cx,
-                    move |this, _cx| {
+                    move |this, cx| {
                         this.state.borrow_mut().apply_theme_mode(mode);
+                        crate::theme::sync_component_theme(cx);
                     },
                 ));
             }
@@ -633,6 +722,8 @@ pub(crate) fn menu_popup(state: Rc<RefCell<State>>, cx: &mut Context<Probe>) -> 
                 has_seed,
                 can_start,
                 has_video,
+                auto_detect_running,
+                motion_pure_mask,
             ) = {
                 let st = state.borrow();
                 let track = st.tracks.get(st.active);
@@ -651,8 +742,12 @@ pub(crate) fn menu_popup(state: Rc<RefCell<State>>, cx: &mut Context<Probe>) -> 
                     }) && !st.tracking.is_some()
                         && st.frame < st.frame_count.saturating_sub(1),
                     st.video.is_some(),
+                    st.auto_detect_running,
+                    st.motion_pure_mask,
                 )
             };
+            #[cfg(not(feature = "vision"))]
+            let _ = auto_detect_running;
             items.push(menu_item(
                 "新建质点轨道",
                 has_video && !tracking,
@@ -811,6 +906,73 @@ pub(crate) fn menu_popup(state: Rc<RefCell<State>>, cx: &mut Context<Probe>) -> 
                 },
             ));
             items.push(menu_separator());
+            #[cfg(feature = "vision")]
+            items.push(menu_item(
+                "自动检测运动目标",
+                has_video && !tracking && !auto_detect_running,
+                cx,
+                |this, cx| {
+                    this.start_motion_detection(cx);
+                },
+            ));
+            #[cfg(feature = "vision")]
+            items.push(menu_item(
+                "ArUco 刚体打标",
+                has_video && !tracking && !auto_detect_running,
+                cx,
+                |this, cx| {
+                    this.start_rigid_tracking(cx);
+                },
+            ));
+            #[cfg(feature = "vision")]
+            items.push(menu_item(
+                "无标记刚体（框选）",
+                has_video && !tracking && !auto_detect_running,
+                cx,
+                |this, _cx| {
+                    let mut st = this.state.borrow_mut();
+                    st.rigid_roi_mode = !st.rigid_roi_mode;
+                    st.motion_roi_mode = false;
+                    st.tool = Tool::Move;
+                    st.status = st
+                        .rigid_roi_mode
+                        .then(|| "在视频上拖拽框选无标记刚体".to_string());
+                },
+            ));
+            #[cfg(feature = "vision")]
+            items.push(menu_item(
+                "运动轮廓刚体（框选）",
+                has_video && !tracking && !auto_detect_running,
+                cx,
+                |this, _cx| {
+                    let mut st = this.state.borrow_mut();
+                    st.motion_roi_mode = !st.motion_roi_mode;
+                    st.rigid_roi_mode = false;
+                    st.tool = Tool::Move;
+                    st.status = st
+                        .motion_roi_mode
+                        .then(|| "在视频上拖拽框选纯色/清晰边界刚体".to_string());
+                },
+            ));
+            #[cfg(feature = "vision")]
+            items.push(menu_item_dynamic(
+                format!(
+                    "[{}] 纯运动掩膜（不学习固定形状）",
+                    if motion_pure_mask { "x" } else { " " }
+                ),
+                28,
+                has_video && !tracking && !auto_detect_running,
+                cx,
+                move |this, _cx| {
+                    let mut st = this.state.borrow_mut();
+                    st.motion_pure_mask = !motion_pure_mask;
+                    st.status = Some(if st.motion_pure_mask {
+                        "运动轮廓将使用纯运动掩膜".into()
+                    } else {
+                        "运动轮廓将使用固定形状匹配".into()
+                    });
+                },
+            ));
             items.push(menu_item(
                 "AutoTracker…",
                 can_start || tracking,
@@ -962,7 +1124,7 @@ pub(crate) fn menu_popup(state: Rc<RefCell<State>>, cx: &mut Context<Probe>) -> 
 
     div()
         .absolute()
-        .top(px(28.))
+        .top(TITLE_BAR_HEIGHT)
         .left(px(x.clamp(4.0, 340.0)))
         .w(px(250.))
         .flex()

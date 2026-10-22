@@ -1,4 +1,5 @@
 use gpui_component::scroll::ScrollableElement;
+use gpui_component::{TitleBar, TITLE_BAR_HEIGHT};
 use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::*;
 
@@ -273,6 +274,20 @@ impl Render for Probe {
                     st.drag = None;
                     let (ix, iy) = st.to_img(sx, sy);
                     let frame = st.frame;
+                    if st.rigid_roi_mode || st.motion_roi_mode {
+                        let motion = st.motion_roi_mode;
+                        st.rigid_roi_mode = false;
+                        st.motion_roi_mode = false;
+                        st.drag = Some(Drag::RigidRoi {
+                            start: (ix, iy),
+                            current: (ix, iy),
+                            frame,
+                            motion,
+                        });
+                        drop(st);
+                        cx.notify();
+                        return;
+                    }
                     if ev.modifiers.shift {
                         let track = st.ensure_point_mass_track();
                         let track_id = st.tracks[track].id;
@@ -301,7 +316,9 @@ impl Render for Probe {
                                 st.active_stick = *stick;
                                 st.selection = Selection::Stick(*stick);
                             }
-                            Drag::Handle { track, .. } | Drag::TrackMove { track, .. } => {
+                            Drag::Handle { track, .. }
+                            | Drag::TrackMove { track, .. }
+                            | Drag::RigidRotate { track, .. } => {
                                 st.active = *track;
                                 st.selection = Selection::Track(st.tracks[*track].id);
                                 st.sync_plot_for_active();
@@ -422,6 +439,23 @@ impl Render for Probe {
                             }
                         }
                     }
+                    Some(Drag::RigidRotate {
+                        track,
+                        frame,
+                        center,
+                    }) => {
+                        let (ix, iy) = st.to_img(sx, sy);
+                        let dx = ix - center.0;
+                        let dy = iy - center.1;
+                        if dx.abs() + dy.abs() > 0.5 {
+                            let angle = dy.atan2(dx);
+                            if let Some(track) = st.tracks.get_mut(track) {
+                                if !track.locked {
+                                    track.set_rigid_angle(frame, angle);
+                                }
+                            }
+                        }
+                    }
                     Some(Drag::Origin { frame }) => {
                         let (ix, iy) = st.to_img(sx, sy);
                         st.coords.set_origin(frame, [ix as f64, iy as f64]);
@@ -469,6 +503,20 @@ impl Render for Probe {
                             ],
                         );
                     }
+                    Some(Drag::RigidRoi {
+                        start,
+                        frame,
+                        motion,
+                        ..
+                    }) => {
+                        let current = st.to_img(sx, sy);
+                        st.drag = Some(Drag::RigidRoi {
+                            start,
+                            current,
+                            frame,
+                            motion,
+                        });
+                    }
                     None => {}
                 }
                 drop(st);
@@ -479,6 +527,38 @@ impl Render for Probe {
                 cx.listener(|this, _ev: &MouseUpEvent, _window, cx| {
                     let mut st = this.state.borrow_mut();
                     let dragged = st.drag.clone();
+                    #[cfg(feature = "vision")]
+                    if let Some(Drag::RigidRoi {
+                        start,
+                        current,
+                        frame,
+                        motion,
+                    }) = dragged.clone()
+                    {
+                        st.drag = None;
+                        st.rigid_roi_mode = false;
+                        st.motion_roi_mode = false;
+                        let img_w = st.img_w;
+                        let img_h = st.img_h;
+                        let x0 = start.0.min(current.0).clamp(0.0, img_w);
+                        let y0 = start.1.min(current.1).clamp(0.0, img_h);
+                        let x1 = start.0.max(current.0).clamp(0.0, img_w);
+                        let y1 = start.1.max(current.1).clamp(0.0, img_h);
+                        let roi = (x0, y0, x1 - x0, y1 - y0);
+                        drop(st);
+                        if roi.2 >= 16.0 && roi.3 >= 16.0 {
+                            if motion {
+                                this.start_motion_contour_tracking(roi, frame, cx);
+                            } else {
+                                this.start_orb_tracking(roi, frame, cx);
+                            }
+                        } else {
+                            this.state.borrow_mut().status =
+                                Some("框选区域太小，请重新框选".into());
+                            cx.notify();
+                        }
+                        return;
+                    }
                     let edited = matches!(
                         dragged,
                         Some(Drag::Handle { .. })
@@ -486,6 +566,7 @@ impl Render for Probe {
                             | Some(Drag::CalStick { .. })
                             | Some(Drag::StickMove { .. })
                             | Some(Drag::TrackMove { .. })
+                            | Some(Drag::RigidRotate { .. })
                             | Some(Drag::AxisOrigin)
                             | Some(Drag::AxisAngle)
                             | Some(Drag::AxisLine { .. })
@@ -670,6 +751,12 @@ impl Render for Probe {
                 has_track,
                 axes_visible,
                 selection,
+                has_video,
+                auto_detect_running,
+                rigid_roi_mode,
+                motion_roi_mode,
+                point_detect_method,
+                rigid_detect_method,
             ) = {
                 let st = state.borrow();
                 (
@@ -684,18 +771,131 @@ impl Render for Probe {
                         .unwrap_or(false),
                     st.axes_visible,
                     st.selection,
+                    st.video.is_some(),
+                    st.auto_detect_running,
+                    st.rigid_roi_mode,
+                    st.motion_roi_mode,
+                    st.point_detect_method,
+                    st.rigid_detect_method,
                 )
             };
+            #[cfg(not(feature = "vision"))]
+            let _ = (
+                has_video,
+                auto_detect_running,
+                rigid_roi_mode,
+                motion_roi_mode,
+                point_detect_method,
+                rigid_detect_method,
+            );
             let autostep_tip = if auto_advance {
                 "自动步进：开 (A)"
             } else {
                 "自动步进：关 (A)"
             };
-            let autotrack_tip = if tracking {
-                "AutoTracker（正在跟踪）"
-            } else {
-                "AutoTracker…"
+            #[cfg(feature = "vision")]
+            let point_group = {
+                let active = match point_detect_method {
+                    PointDetectMethod::AutoTracker => tracking,
+                    PointDetectMethod::AutoDetect => auto_detect_running,
+                };
+                group_icon_button(
+                    "tool-point-detect",
+                    point_detect_method.icon(),
+                    point_detect_method.tooltip(),
+                    ToolGroup::PointDetect,
+                    active,
+                    has_video && !auto_detect_running,
+                    cx,
+                    move |this, cx| match point_detect_method {
+                        PointDetectMethod::AutoTracker => {
+                            let mut st = this.state.borrow_mut();
+                            if !st
+                                .active_track()
+                                .map(|track| track.is_point_mass())
+                                .unwrap_or(false)
+                            {
+                                st.status = Some("请先新建或选择一个质点轨道".into());
+                                return;
+                            }
+                            drop(st);
+                            this.open_tracker_window(cx);
+                        }
+                        PointDetectMethod::AutoDetect => {
+                            let mut st = this.state.borrow_mut();
+                            if st.tracking.is_some() {
+                                st.status = Some("请先停止自动跟踪".into());
+                                return;
+                            }
+                            st.rigid_roi_mode = false;
+                            st.motion_roi_mode = false;
+                            drop(st);
+                            this.start_motion_detection(cx);
+                        }
+                    },
+                )
             };
+            #[cfg(not(feature = "vision"))]
+            let point_group = icon_button(
+                "tool-autotrack",
+                ICON_TARGET,
+                "AutoTracker…",
+                32.0,
+                18.0,
+                tracking,
+                has_track,
+                cx,
+                move |this, cx| {
+                    this.open_tracker_window(cx);
+                },
+            );
+            #[cfg(feature = "vision")]
+            let rigid_group = {
+                let active = match rigid_detect_method {
+                    RigidDetectMethod::Aruco => auto_detect_running,
+                    RigidDetectMethod::Markerless => rigid_roi_mode,
+                    RigidDetectMethod::MotionContour => motion_roi_mode,
+                };
+                group_icon_button(
+                    "tool-rigid-detect",
+                    rigid_detect_method.icon(),
+                    rigid_detect_method.tooltip(),
+                    ToolGroup::RigidDetect,
+                    active,
+                    has_video && !tracking && !auto_detect_running,
+                    cx,
+                    move |this, cx| match rigid_detect_method {
+                        RigidDetectMethod::Aruco => {
+                            {
+                                let mut st = this.state.borrow_mut();
+                                st.rigid_roi_mode = false;
+                                st.motion_roi_mode = false;
+                            }
+                            this.start_rigid_tracking(cx);
+                        }
+                        RigidDetectMethod::Markerless => {
+                            let mut st = this.state.borrow_mut();
+                            st.rigid_roi_mode = !st.rigid_roi_mode;
+                            st.motion_roi_mode = false;
+                            st.tool = Tool::Move;
+                            st.status = st
+                                .rigid_roi_mode
+                                .then(|| "在视频上拖拽框选无标记刚体".to_string());
+                        }
+                        RigidDetectMethod::MotionContour => {
+                            let mut st = this.state.borrow_mut();
+                            st.motion_roi_mode = !st.motion_roi_mode;
+                            st.rigid_roi_mode = false;
+                            st.tool = Tool::Move;
+                            st.status = st
+                                .motion_roi_mode
+                                .then(|| "在视频上拖拽框选纯色/清晰边界刚体".to_string());
+                        }
+                    },
+                )
+            };
+            #[cfg(not(feature = "vision"))]
+            let rigid_group = div().w(px(0.)).h(px(0.));
             div()
                 .w(px(42.))
                 .flex_none()
@@ -773,19 +973,8 @@ impl Render for Probe {
                         }
                     },
                 ))
-                .child(icon_button(
-                    "tool-autotrack",
-                    ICON_TARGET,
-                    autotrack_tip,
-                    32.0,
-                    18.0,
-                    tracking,
-                    has_track,
-                    cx,
-                    move |this, cx| {
-                        this.open_tracker_window(cx);
-                    },
-                ))
+                .child(point_group)
+                .child(rigid_group)
                 .child(div().w(px(22.)).h(px(1.)).my_1().bg(c(0x1d2a3d)))
                 .child(icon_button(
                     "tool-axes",
@@ -981,7 +1170,9 @@ impl Render for Probe {
                                     .child(t.name.clone()),
                             )
                             .child(div().text_xs().text_color(c(0x5f6f88)).child(
-                                if t.is_point_mass() {
+                                if t.is_rigid_body() {
+                                    "刚体".to_string()
+                                } else if t.is_point_mass() {
                                     format!("{}·{}", t.footprint.label(), t.step_size)
                                 } else {
                                     t.kind_label().to_string()
@@ -1321,6 +1512,53 @@ impl Render for Probe {
                                 },
                             ));
                             if is_point_mass {
+                                if let Some(rigid) = &track.rigid {
+                                    let markerless = rigid.markers.is_empty();
+                                    let source = match rigid.dictionary.as_str() {
+                                        "ORB" => "无标记（ORB）".to_string(),
+                                        "MOTION" => format!(
+                                            "运动轮廓 · {}",
+                                            rigid.mask_mode.label()
+                                        ),
+                                        _ => format!(
+                                            "{} · {} 个标记",
+                                            rigid.dictionary,
+                                            rigid.markers.len()
+                                        ),
+                                    };
+                                    object_rows.push(
+                                        kv(if markerless { "跟踪" } else { "ArUco" }, source)
+                                            .into_any_element(),
+                                    );
+                                    if let Some(step) = track.rigid_step(st.frame) {
+                                        object_rows.push(
+                                            kv(
+                                                "刚体角度",
+                                                format!("{:.2}°", step.angle.to_degrees()),
+                                            )
+                                            .into_any_element(),
+                                        );
+                                        object_rows.push(
+                                            kv("特征尺寸", format!("{:.1} px", step.scale))
+                                                .into_any_element(),
+                                        );
+                                        let quality_label = match rigid.dictionary.as_str() {
+                                            "ORB" => "内点",
+                                            "MOTION" => "匹配度",
+                                            _ => "可见标记",
+                                        };
+                                        object_rows.push(
+                                            kv(quality_label, format!("{}", step.marker_count))
+                                                .into_any_element(),
+                                        );
+                                    }
+                                    if !rigid.contour.is_empty() {
+                                        object_rows.push(
+                                            kv("轮廓点", format!("{}", rigid.contour.len()))
+                                                .into_any_element(),
+                                        );
+                                    }
+                                }
                                 if let Some(velocity) =
                                     track.world_velocity(st.frame, &st.coords, frame_times)
                                 {
@@ -1700,11 +1938,15 @@ impl Render for Probe {
                 )
         };
 
-        let menu = menu_bar(state.clone(), cx);
+        let title_bar = TitleBar::new()
+            .bg(c(0x070b12))
+            .border_color(c(0x1d2a3d))
+            .text_color(c(0xdbe6f5))
+            .child(menu_bar(state.clone(), cx));
         let menu_overlay = if state.borrow().menu_open.is_some() {
             div()
                 .absolute()
-                .top(px(28.))
+                .top(TITLE_BAR_HEIGHT)
                 .left(px(0.))
                 .size_full()
                 .bg(transparent_black())
@@ -1776,7 +2018,7 @@ impl Render for Probe {
             .flex_col()
             .bg(c(0x070b12))
             .text_color(c(0xdbe6f5))
-            .child(menu)
+            .child(title_bar)
             .child(
                 div()
                     .flex_1()

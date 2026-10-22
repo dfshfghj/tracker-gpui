@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{BTreeMap, HashSet};
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Instant;
@@ -396,6 +396,86 @@ impl DocState {
         self.commit_edit();
     }
 
+    #[cfg(feature = "vision")]
+    pub(crate) fn add_auto_points(&mut self, points: &[(usize, f32, f32)], label: &str) -> usize {
+        if self.video.is_none() || points.is_empty() {
+            return 0;
+        }
+        let id = self.next_track_id;
+        self.next_track_id += 1;
+        let color = PALETTE[(id as usize - 1) % PALETTE.len()];
+        let mut track = Track::point_mass(id, format!("{label} {id}"), color);
+        for &(frame, x, y) in points {
+            track.set_point(frame, x, y);
+        }
+        self.tracks.push(track);
+        self.active = self.tracks.len() - 1;
+        self.selection = Selection::Track(id);
+        self.sync_plot_for_active();
+        self.commit_edit();
+        if let Some((frame, _, _)) = points.first() {
+            self.set_frame(*frame);
+        }
+        points.len()
+    }
+
+    #[cfg(feature = "vision")]
+    pub(crate) fn add_rigid_body(
+        &mut self,
+        dictionary: String,
+        markers: Vec<RigidBodyMarker>,
+        contour: Vec<[f32; 2]>,
+        steps: &[(usize, f32, f32, f32, f32, u8)],
+        label: &str,
+    ) -> usize {
+        self.add_rigid_body_with(
+            dictionary,
+            markers,
+            contour,
+            steps,
+            label,
+            RigidMaskMode::FixedShape,
+            &BTreeMap::new(),
+        )
+    }
+
+    #[cfg(feature = "vision")]
+    pub(crate) fn add_rigid_body_with(
+        &mut self,
+        dictionary: String,
+        markers: Vec<RigidBodyMarker>,
+        contour: Vec<[f32; 2]>,
+        steps: &[(usize, f32, f32, f32, f32, u8)],
+        label: &str,
+        mask_mode: RigidMaskMode,
+        step_contours: &BTreeMap<usize, Vec<[f32; 2]>>,
+    ) -> usize {
+        if self.video.is_none() || steps.is_empty() {
+            return 0;
+        }
+        let id = self.next_track_id;
+        self.next_track_id += 1;
+        let color = PALETTE[(id as usize - 1) % PALETTE.len()];
+        let mut track = Track::rigid_body(id, format!("{label} {id}"), color, dictionary, markers);
+        track.set_rigid_contour(contour);
+        track.set_rigid_mask_mode(mask_mode);
+        for &(frame, x, y, angle, scale, marker_count) in steps {
+            track.set_rigid_step(frame, x, y, angle, scale, marker_count);
+        }
+        for (frame, contour) in step_contours {
+            track.set_rigid_step_contour(*frame, contour.clone());
+        }
+        self.tracks.push(track);
+        self.active = self.tracks.len() - 1;
+        self.selection = Selection::Track(id);
+        self.sync_plot_for_active();
+        self.commit_edit();
+        if let Some((frame, _, _, _, _, _)) = steps.first() {
+            self.set_frame(*frame);
+        }
+        steps.len()
+    }
+
     pub(crate) fn ensure_point_mass_track(&mut self) -> usize {
         if self
             .active_track()
@@ -470,6 +550,9 @@ impl DocState {
         };
         if !track.is_point_mass() {
             return Err("自动跟踪仅支持质点轨道".into());
+        }
+        if track.is_rigid_body() {
+            return Err("刚体轨道不支持 AutoTracker".into());
         }
         if track.locked {
             return Err("当前轨道已锁定".into());
@@ -819,6 +902,30 @@ impl DocState {
                             })
                             .collect(),
                     }),
+                    rigid_body: track.rigid.as_ref().map(|rigid| RigidBodyProject {
+                        dictionary: rigid.dictionary.clone(),
+                        markers: rigid
+                            .markers
+                            .iter()
+                            .map(|marker| RigidBodyMarkerProject {
+                                id: marker.id,
+                                corners: marker.corners,
+                            })
+                            .collect(),
+                        steps: rigid
+                            .steps
+                            .iter()
+                            .map(|(frame, step)| RigidBodyStepProject {
+                                frame: *frame,
+                                angle: step.angle,
+                                scale: step.scale,
+                                marker_count: step.marker_count,
+                                contour: step.contour.clone(),
+                            })
+                            .collect(),
+                        contour: rigid.contour.clone(),
+                        mask_mode: rigid.mask_mode.tag().to_string(),
+                    }),
                 })
                 .collect(),
             active_track: self.active,
@@ -871,10 +978,44 @@ impl DocState {
                         restored
                     }
                     None => {
-                        let mut restored =
-                            Track::point_mass(index as u64 + 1, track.name.clone(), track.color);
+                        let mut restored = if let Some(rigid) = &track.rigid_body {
+                            Track::rigid_body(
+                                index as u64 + 1,
+                                track.name.clone(),
+                                track.color,
+                                rigid.dictionary.clone(),
+                                rigid
+                                    .markers
+                                    .iter()
+                                    .map(|marker| RigidBodyMarker {
+                                        id: marker.id,
+                                        corners: marker.corners,
+                                    })
+                                    .collect(),
+                            )
+                        } else {
+                            Track::point_mass(index as u64 + 1, track.name.clone(), track.color)
+                        };
                         for point in &track.points {
                             restored.set_point(point.frame, point.x, point.y);
+                        }
+                        if let (Some(rigid), Some(restored_rigid)) =
+                            (&track.rigid_body, &mut restored.rigid)
+                        {
+                            restored_rigid.contour = rigid.contour.clone();
+                            restored_rigid.mask_mode =
+                                RigidMaskMode::from_tag(&rigid.mask_mode);
+                            for step in &rigid.steps {
+                                restored_rigid.steps.insert(
+                                    step.frame,
+                                    RigidBodyStep {
+                                        angle: step.angle,
+                                        scale: step.scale,
+                                        marker_count: step.marker_count,
+                                        contour: step.contour.clone(),
+                                    },
+                                );
+                            }
                         }
                         restored
                     }
@@ -1357,6 +1498,24 @@ impl DocState {
                 });
             }
         }
+        if let Some(track) = self.tracks.get(self.active) {
+            if track.visible && !track.locked && track.is_rigid_body() {
+                if let Some(step) = track.rigid_step(frame) {
+                    if let Some((x, y)) = track.point_at(frame) {
+                        let (cx, cy) = self.to_screen(x, y);
+                        let side = (step.scale * self.scale).max(8.0);
+                        let handle = rigid_rotation_handle((cx, cy), step.angle, side);
+                        if near(handle, (sx, sy), 11.0) {
+                            return Some(Drag::RigidRotate {
+                                track: self.active,
+                                frame,
+                                center: (x, y),
+                            });
+                        }
+                    }
+                }
+            }
+        }
         for track_index in (0..self.tracks.len()).rev() {
             let track = &self.tracks[track_index];
             if !track.visible {
@@ -1476,6 +1635,7 @@ impl State {
             tracker_fast: false,
             tracker_thumbs: None,
             tracker_thumbs_drop: Vec::new(),
+            auto_detect_running: false,
             drag: None,
             progress_rect: (0.0, 0.0, 0.0, 0.0),
             scrubbing: false,
@@ -1483,6 +1643,11 @@ impl State {
             right_open: true,
             right_view: RightView::Inspector,
             textures_to_drop: Vec::new(),
+            rigid_roi_mode: false,
+            motion_roi_mode: false,
+            motion_pure_mask: false,
+            point_detect_method: PointDetectMethod::AutoTracker,
+            rigid_detect_method: RigidDetectMethod::MotionContour,
         };
         if let Some(dir) = initial_dir {
             if dir.is_dir() {
@@ -1905,6 +2070,8 @@ impl State {
 
     pub(crate) fn select_tool(&mut self, tool: Tool) {
         self.tool = tool;
+        self.rigid_roi_mode = false;
+        self.motion_roi_mode = false;
         if tool.is_measurement_group() {
             self.measurement_tool = tool;
         }

@@ -206,6 +206,9 @@ pub(crate) fn draw_scene(st: &State, window: &mut Window, cx: &mut App) -> usize
                 }
             }
         }
+        if track.is_rigid_body() {
+            draw_rigid_body(st, window, track, &visible, ox, oy, active);
+        }
         drawn += visible.len();
     }
 
@@ -238,6 +241,22 @@ pub(crate) fn draw_scene(st: &State, window: &mut Window, cx: &mut App) -> usize
 
     draw_tracking_overlay(st, window, cx, ox, oy);
 
+    if let Some(Drag::RigidRoi { start, current, .. }) = &st.drag {
+        let (x0, y0) = st.to_screen(start.0.min(current.0), start.1.min(current.1));
+        let (x1, y1) = st.to_screen(start.0.max(current.0), start.1.max(current.1));
+        window.paint_quad(quad(
+            Bounds {
+                origin: point(px(ox + x0), px(oy + y0)),
+                size: size(px((x1 - x0).max(1.0)), px((y1 - y0).max(1.0))),
+            },
+            px(0.),
+            c(0xffd166).alpha(0.12),
+            px(1.5),
+            c(0xffd166),
+            Default::default(),
+        ));
+    }
+
     // image border
     window.paint_quad(quad(
         Bounds {
@@ -252,6 +271,88 @@ pub(crate) fn draw_scene(st: &State, window: &mut Window, cx: &mut App) -> usize
     ));
 
     drawn
+}
+
+fn draw_rigid_body(
+    st: &State,
+    window: &mut Window,
+    track: &Track,
+    visible: &[(usize, f32, f32)],
+    ox: f32,
+    oy: f32,
+    active: bool,
+) {
+    let color = rgb(track.color);
+    for (frame, px, py) in visible {
+        let Some(step) = track.rigid_step(*frame) else {
+            continue;
+        };
+        let (sx, sy) = st.to_screen(*px, *py);
+        let x = ox + sx;
+        let y = oy + sy;
+        let side = (step.scale * st.scale).max(8.0);
+        let half = side * 0.5;
+        let angle = step.angle;
+        let (sin, cos) = angle.sin_cos();
+        let current = *frame == st.frame;
+        let width = if active || current { 1.6 } else { 1.0 };
+        if current {
+            let contour = step
+                .contour
+                .as_ref()
+                .filter(|contour| contour.len() > 2)
+                .or_else(|| {
+                    track
+                        .rigid
+                        .as_ref()
+                        .map(|rigid| &rigid.contour)
+                        .filter(|contour| contour.len() > 2)
+                });
+            let outline = contour
+                .map(|contour| {
+                    let mut points: Vec<(f32, f32)> = contour
+                        .iter()
+                        .map(|[lx, ly]| {
+                            let (px, py) = (lx * side, ly * side);
+                            (x + cos * px - sin * py, y + sin * px + cos * py)
+                        })
+                        .collect();
+                    points.push(points[0]);
+                    points
+                })
+                .unwrap_or_else(|| {
+                    [
+                        (-half, -half),
+                        (half, -half),
+                        (half, half),
+                        (-half, half),
+                        (-half, -half),
+                    ]
+                    .map(|(lx, ly)| (x + cos * lx - sin * ly, y + sin * lx + cos * ly))
+                    .to_vec()
+                });
+            if let Some(path) = stroke_path(&outline, width) {
+                window.paint_path(path, color.alpha(if active { 0.95 } else { 0.55 }));
+            }
+        }
+        let editable = active && current && !track.locked;
+        let axis_end = if editable {
+            rigid_rotation_handle((x, y), angle, side)
+        } else {
+            (x + cos * side * 0.8, y + sin * side * 0.8)
+        };
+        if let Some(path) = stroke_path(&[(x, y), axis_end], width) {
+            window.paint_path(path, color.alpha(if active { 0.95 } else { 0.55 }));
+        }
+        if editable {
+            if let Some(path) = circle_path(axis_end.0, axis_end.1, 6.0, false, 2.0) {
+                window.paint_path(path, c(0xffd166));
+            }
+            if let Some(path) = circle_path(axis_end.0, axis_end.1, 1.8, true, 1.0) {
+                window.paint_path(path, c(0xffd166));
+            }
+        }
+    }
 }
 
 pub(crate) fn measurement_summary(

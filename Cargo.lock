@@ -4462,6 +4462,41 @@ dependencies = [
 ]
 
 [[package]]
+name = "opencv"
+version = "0.101.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cac4182ca27a86f18c4f07f4ccf83ae8cc68fe8080734ca75745f617f6658c89"
+dependencies = [
+ "cc",
+ "dunce",
+ "jobserver",
+ "libc",
+ "num-traits",
+ "opencv-binding-generator",
+ "pkg-config",
+ "semver",
+ "shlex 2.0.1",
+ "vcpkg",
+ "windows 0.62.2",
+ "winsplit",
+]
+
+[[package]]
+name = "opencv-binding-generator"
+version = "0.107.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "42973794347e82fc07e29700c422f1d2cdda9c4b124247ae4f66c5f08fb22856"
+dependencies = [
+ "clang",
+ "clang-sys",
+ "dunce",
+ "percent-encoding",
+ "regex",
+ "semver",
+ "shlex 2.0.1",
+]
+
+[[package]]
 name = "openssl-probe"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6632,6 +6667,7 @@ dependencies = [
  "gpui-kit",
  "image",
  "libc",
+ "opencv",
  "raw-window-handle",
  "serde",
  "serde_json",
@@ -7975,6 +8011,12 @@ dependencies = [
  "cfg-if",
  "windows-sys 0.61.2",
 ]
+
+[[package]]
+name = "winsplit"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3ab703352da6a72f35c39a533526393725640575bb211f61987a2748323ad956"
 
 [[package]]
 name = "wio"

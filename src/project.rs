@@ -6,7 +6,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 pub const FORMAT: &str = "tracker-gpui-project";
-pub const VERSION: u32 = 2;
+pub const VERSION: u32 = 3;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ProjectFile {
@@ -85,6 +85,41 @@ pub struct TrackProject {
     pub points: Vec<PointProject>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub measurement: Option<MeasurementProject>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub rigid_body: Option<RigidBodyProject>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct RigidBodyProject {
+    #[serde(default)]
+    pub dictionary: String,
+    #[serde(default)]
+    pub markers: Vec<RigidBodyMarkerProject>,
+    #[serde(default)]
+    pub steps: Vec<RigidBodyStepProject>,
+    #[serde(default)]
+    pub contour: Vec<[f32; 2]>,
+    #[serde(default)]
+    pub mask_mode: String,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct RigidBodyMarkerProject {
+    pub id: u32,
+    pub corners: [[f32; 2]; 4],
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct RigidBodyStepProject {
+    pub frame: usize,
+    #[serde(default)]
+    pub angle: f32,
+    #[serde(default)]
+    pub scale: f32,
+    #[serde(default)]
+    pub marker_count: u8,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub contour: Option<Vec<[f32; 2]>>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -218,6 +253,7 @@ mod tests {
                 y: -2.5,
             }],
             measurement: None,
+            rigid_body: None,
         };
         let text = serde_json::to_string(&track).unwrap();
         let restored: TrackProject = serde_json::from_str(&text).unwrap();
@@ -252,6 +288,7 @@ mod tests {
                     handles: vec![[1.0, 2.0], [3.0, 4.0]],
                 }],
             }),
+            rigid_body: None,
         };
         let text = serde_json::to_string(&track).unwrap();
         let restored: TrackProject = serde_json::from_str(&text).unwrap();
@@ -259,5 +296,50 @@ mod tests {
         assert_eq!(measurement.kind(), Some(MeasurementKind::Tape));
         assert_eq!(measurement.steps.len(), 1);
         assert_eq!(measurement.steps[0].handles, vec![[1.0, 2.0], [3.0, 4.0]]);
+    }
+
+    #[test]
+    fn rigid_body_roundtrip() {
+        let track = TrackProject {
+            name: "Rigid".into(),
+            color: 1,
+            visible: true,
+            locked: false,
+            step_size: 1,
+            auto_advance: false,
+            footprint: Footprint::Diamond,
+            keyframes: Vec::new(),
+            points: vec![PointProject {
+                frame: 0,
+                x: 20.0,
+                y: 30.0,
+            }],
+            measurement: None,
+            rigid_body: Some(RigidBodyProject {
+                dictionary: "DICT_4X4_50".into(),
+                markers: vec![RigidBodyMarkerProject {
+                    id: 0,
+                    corners: [[-0.5, -0.5], [0.5, -0.5], [0.5, 0.5], [-0.5, 0.5]],
+                }],
+                steps: vec![RigidBodyStepProject {
+                    frame: 0,
+                    angle: 0.5,
+                    scale: 99.0,
+                    marker_count: 1,
+                    contour: None,
+                }],
+                contour: Vec::new(),
+                mask_mode: "fixed".into(),
+            }),
+        };
+        let text = serde_json::to_string(&track).unwrap();
+        let restored: TrackProject = serde_json::from_str(&text).unwrap();
+        let rigid = restored.rigid_body.unwrap();
+        assert_eq!(rigid.dictionary, "DICT_4X4_50");
+        assert_eq!(rigid.markers.len(), 1);
+        assert_eq!(rigid.markers[0].id, 0);
+        assert_eq!(rigid.steps.len(), 1);
+        assert!((rigid.steps[0].angle - 0.5).abs() < 1e-6);
+        assert_eq!(rigid.steps[0].marker_count, 1);
     }
 }

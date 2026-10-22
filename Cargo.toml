@@ -2,6 +2,20 @@
 name = "tracker-gpui"
 version = "0.1.0"
 edition = "2021"
+license = "GPL-3.0-or-later"
+repository = "https://github.com/dfshfghj/tracker-gpui"
+
+[[example]]
+name = "synth_aruco"
+required-features = ["vision"]
+
+[[example]]
+name = "synth_motion"
+required-features = ["vision"]
+
+[features]
+default = []
+vision = ["dep:opencv"]
 
 [dependencies]
 gpui-kit = "0.7.3"
@@ -18,6 +32,13 @@ ffmpeg-the-third = { version = "=6.0.0", default-features = false, features = [
 image = { version = "0.25.1", default-features = false, features = ["jpeg", "png"] }
 smallvec = "1"
 raw-window-handle = "0.6"
+opencv = { version = "0.101.1", optional = true, default-features = false, features = [
+  "imgproc",
+  "video",
+  "imgcodecs",
+  "objdetect",
+  "calib3d",
+] }
 
 # gpui-pre-util 0.3.9 uses the still-unstable `slice::as_array`.
 # Local patch keeps the demo building on stable Rust.

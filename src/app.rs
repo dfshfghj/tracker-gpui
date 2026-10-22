@@ -22,6 +22,264 @@ impl Probe {
                 }
             }
         }
+        #[cfg(feature = "vision")]
+        if std::env::var_os("PROBE_RIGID").is_some() {
+            let source = st.video.as_ref().map(|video| video.frame_source());
+            let Some(source) = source else {
+                eprintln!("[script] rigid skipped: no video");
+                std::process::exit(1);
+            };
+            match crate::rigid::detect_rigid(&source) {
+                Ok(result) => {
+                    let steps: Vec<_> = result
+                        .points
+                        .iter()
+                        .map(|point| {
+                            (
+                                point.frame,
+                                point.x,
+                                point.y,
+                                point.angle,
+                                point.scale,
+                                point.marker_count,
+                            )
+                        })
+                        .collect();
+                    let markers = result
+                        .markers
+                        .iter()
+                        .map(|marker| RigidBodyMarker {
+                            id: marker.id,
+                            corners: marker.corners,
+                        })
+                        .collect();
+                    let count = st.add_rigid_body(
+                        result.dictionary.clone(),
+                        markers,
+                        Vec::new(),
+                        &steps,
+                        "刚体检测",
+                    );
+                    eprintln!(
+                        "[script] rigid points={count} markers={} detections={} dict={}",
+                        result.markers.len(),
+                        result.detections,
+                        result.dictionary
+                    );
+                    for point in result.points.iter().take(3) {
+                        eprintln!(
+                            "[script] rigid f{} ({:.1},{:.1}) angle={:.2} scale={:.1} markers={}",
+                            point.frame,
+                            point.x,
+                            point.y,
+                            point.angle,
+                            point.scale,
+                            point.marker_count
+                        );
+                    }
+                    if let Some(point) = result.points.last() {
+                        eprintln!(
+                            "[script] rigid last f{} angle={:.2} scale={:.1}",
+                            point.frame, point.angle, point.scale
+                        );
+                    }
+                    if let Some(path) = std::env::var_os("PROBE_SAVE") {
+                        match st.save_project_to(std::path::Path::new(&path)) {
+                            Ok(()) => eprintln!("[script] rigid saved"),
+                            Err(err) => eprintln!("[script] rigid save failed: {err}"),
+                        }
+                    }
+                    std::process::exit(0);
+                }
+                Err(err) => {
+                    eprintln!("[script] rigid failed: {err}");
+                    std::process::exit(1);
+                }
+            }
+        }
+        #[cfg(feature = "vision")]
+        if std::env::var_os("PROBE_ORB").is_some() {
+            let roi = std::env::var("PROBE_ORB_ROI")
+                .ok()
+                .and_then(|text| {
+                    let values: Vec<f32> = text
+                        .split(',')
+                        .filter_map(|part| part.trim().parse().ok())
+                        .collect();
+                    (values.len() == 4).then(|| (values[0], values[1], values[2], values[3]))
+                })
+                .unwrap_or((80.0, 160.0, 480.0, 260.0));
+            let frame = std::env::var("PROBE_ORB_FRAME")
+                .ok()
+                .and_then(|text| text.trim().parse().ok())
+                .unwrap_or(st.frame);
+            let source = st.video.as_ref().map(|video| video.frame_source());
+            let Some(source) = source else {
+                eprintln!("[script] orb skipped: no video");
+                std::process::exit(1);
+            };
+            match crate::orb_track::detect_orb(&source, roi, frame) {
+                Ok(result) => {
+                    let steps: Vec<_> = result
+                        .points
+                        .iter()
+                        .map(|point| {
+                            (
+                                point.frame,
+                                point.x,
+                                point.y,
+                                point.angle,
+                                point.scale,
+                                point.marker_count,
+                            )
+                        })
+                        .collect();
+                    let count = st.add_rigid_body(
+                        result.dictionary.clone(),
+                        Vec::new(),
+                        Vec::new(),
+                        &steps,
+                        "无标记刚体",
+                    );
+                    eprintln!(
+                        "[script] orb points={count} tracked={} roi={roi:?}",
+                        result.detections
+                    );
+                    if let Some(point) = result.points.last() {
+                        eprintln!(
+                            "[script] orb last f{} ({:.1},{:.1}) angle={:.2} scale={:.1} inliers={}",
+                            point.frame,
+                            point.x,
+                            point.y,
+                            point.angle,
+                            point.scale,
+                            point.marker_count
+                        );
+                    }
+                    std::process::exit(0);
+                }
+                Err(err) => {
+                    eprintln!("[script] orb failed: {err}");
+                    std::process::exit(1);
+                }
+            }
+        }
+        #[cfg(feature = "vision")]
+        if std::env::var_os("PROBE_MOTION").is_some() {
+            let roi = std::env::var("PROBE_MOTION_ROI")
+                .ok()
+                .and_then(|text| {
+                    let values: Vec<f32> = text
+                        .split(',')
+                        .filter_map(|part| part.trim().parse().ok())
+                        .collect();
+                    (values.len() == 4).then(|| (values[0], values[1], values[2], values[3]))
+                })
+                .unwrap_or((180.0, 150.0, 300.0, 280.0));
+            let frame = std::env::var("PROBE_MOTION_FRAME")
+                .ok()
+                .and_then(|text| text.trim().parse().ok())
+                .unwrap_or(5);
+            let source = st.video.as_ref().map(|video| video.frame_source());
+            let Some(source) = source else {
+                eprintln!("[script] motion skipped: no video");
+                std::process::exit(1);
+            };
+            let options = crate::motion_contour::MotionOptions::from_env();
+            match crate::motion_contour::detect_motion_contour(&source, roi, frame, options) {
+                Ok(result) => {
+                    let steps: Vec<_> = result
+                        .points
+                        .iter()
+                        .map(|point| {
+                            (
+                                point.frame,
+                                point.x,
+                                point.y,
+                                point.angle,
+                                point.scale,
+                                point.marker_count,
+                            )
+                        })
+                        .collect();
+                    let count = st.add_rigid_body_with(
+                        "MOTION".into(),
+                        Vec::new(),
+                        result.contour.clone(),
+                        &steps,
+                        "运动轮廓",
+                        result.mask_mode,
+                        &result.step_contours,
+                    );
+                    eprintln!(
+                        "[script] motion points={count} tracked={} contour={} roi={roi:?} mode={:?}",
+                        result.detections,
+                        result.contour.len(),
+                        result.mask_mode
+                    );
+                    if let Some(point) = result.points.last() {
+                        eprintln!(
+                            "[script] motion last f{} ({:.1},{:.1}) angle={:.2} scale={:.1} quality={}",
+                            point.frame,
+                            point.x,
+                            point.y,
+                            point.angle,
+                            point.scale,
+                            point.marker_count
+                        );
+                    }
+                    if let Some(path) = std::env::var_os("PROBE_SAVE") {
+                        match st.save_project_to(std::path::Path::new(&path)) {
+                            Ok(()) => eprintln!("[script] motion saved"),
+                            Err(err) => eprintln!("[script] motion save failed: {err}"),
+                        }
+                    }
+                    std::process::exit(0);
+                }
+                Err(err) => {
+                    eprintln!("[script] motion failed: {err}");
+                    std::process::exit(1);
+                }
+            }
+        }
+        #[cfg(feature = "vision")]
+        if std::env::var_os("PROBE_AUTODETECT").is_some() {
+            let preview = std::env::var_os("PROBE_AUTODETECT_PREVIEW").map(|value| {
+                if value.to_str() == Some("1") {
+                    PathBuf::from("target/motion_preview.png")
+                } else {
+                    PathBuf::from(value)
+                }
+            });
+            let source = st.video.as_ref().map(|video| video.frame_source());
+            let Some(source) = source else {
+                eprintln!("[script] autodetect skipped: no video");
+                std::process::exit(1);
+            };
+            match crate::motion_detect::detect_motion(&source, preview.as_deref()) {
+                Ok(result) => {
+                    let points: Vec<_> = result
+                        .points
+                        .iter()
+                        .map(|point| (point.frame, point.x, point.y))
+                        .collect();
+                    let count = st.add_auto_points(&points, "自动检测");
+                    eprintln!(
+                        "[script] autodetect points={count} candidates={} score={:.1} path={:.1} bright={:.1} preview={:?}",
+                        result.candidates,
+                        result.score,
+                        result.path_length,
+                        result.mean_brightness,
+                        result.preview
+                    );
+                    std::process::exit(0);
+                }
+                Err(err) => {
+                    eprintln!("[script] autodetect failed: {err}");
+                    std::process::exit(1);
+                }
+            }
+        }
         if std::env::var("PROBE_PLAY").is_ok() {
             st.play();
         }
@@ -672,6 +930,35 @@ impl Probe {
                 .detach();
             }
         }
+        #[cfg(feature = "vision")]
+        if std::env::var_os("PROBE_AUTODETECT_UI").is_some() {
+            cx.spawn(async move |this, cx| {
+                cx.background_executor()
+                    .timer(std::time::Duration::from_millis(1500))
+                    .await;
+                let _ = this.update(cx, |this, cx| {
+                    this.start_motion_detection(cx);
+                });
+                cx.background_executor()
+                    .timer(std::time::Duration::from_millis(2000))
+                    .await;
+                let _ = this.update(cx, |this, cx| {
+                    let st = this.state.borrow();
+                    let points = st
+                        .active_track()
+                        .map(|track| track.step_count())
+                        .unwrap_or(0);
+                    eprintln!(
+                        "[script] autodetect ui points={points} running={} status={:?}",
+                        st.auto_detect_running, st.status
+                    );
+                    drop(st);
+                    cx.notify();
+                    std::process::exit(0);
+                });
+            })
+            .detach();
+        }
         cx.spawn(async move |this, cx| loop {
             cx.background_executor()
                 .timer(std::time::Duration::from_secs(5))
@@ -685,10 +972,14 @@ impl Probe {
                 .await;
             if light != light_theme() {
                 LIGHT_THEME.store(light, Ordering::Relaxed);
-                let _ = this.update(cx, |_this, cx| cx.notify());
+                let _ = this.update(cx, |_this, cx| {
+                    crate::theme::sync_component_theme(cx);
+                    cx.notify();
+                });
             }
         })
         .detach();
+        crate::theme::sync_component_theme(cx);
         Self {
             state,
             focus: cx.focus_handle(),
@@ -727,6 +1018,8 @@ impl Probe {
 
     pub(crate) fn open_tracker_window(&mut self, cx: &mut Context<Self>) {
         self.state.borrow_mut().open_tracker_dialog();
+        self.state.borrow_mut().rigid_roi_mode = false;
+        self.state.borrow_mut().motion_roi_mode = false;
         if let Some(handle) = self.tracker_window {
             let focused = handle
                 .update(cx, |_view, window, _cx| {
@@ -774,6 +1067,325 @@ impl Probe {
             }
         }
         cx.notify();
+    }
+
+    #[cfg(feature = "vision")]
+    pub(crate) fn start_motion_detection(&mut self, cx: &mut Context<Self>) {
+        let (source, doc_id) = {
+            let mut st = self.state.borrow_mut();
+            if st.auto_detect_running {
+                return;
+            }
+            let Some(source) = st.video.as_ref().map(|video| video.frame_source()) else {
+                st.status = Some("请先打开视频".into());
+                drop(st);
+                cx.notify();
+                return;
+            };
+            let doc_id = st.docs[st.active_doc].id;
+            st.auto_detect_running = true;
+            st.rigid_roi_mode = false;
+            st.motion_roi_mode = false;
+            st.status = Some("自动检测运动目标…".into());
+            (source, doc_id)
+        };
+        cx.notify();
+        let state = self.state.clone();
+        cx.spawn(async move |this, cx| {
+            let result = cx
+                .background_executor()
+                .spawn(async move { crate::motion_detect::detect_motion(&source, None) })
+                .await;
+            let _ = this.update(cx, |_this, cx| {
+                let mut st = state.borrow_mut();
+                st.auto_detect_running = false;
+                if st.docs[st.active_doc].id != doc_id {
+                    st.status = Some("自动检测完成，但已切换视频，结果已丢弃".into());
+                    cx.notify();
+                    return;
+                }
+                match result {
+                    Ok(result) => {
+                        let points: Vec<_> = result
+                            .points
+                            .iter()
+                            .map(|point| (point.frame, point.x, point.y))
+                            .collect();
+                        let count = st.add_auto_points(&points, "自动检测");
+                        st.status = Some(format!(
+                            "自动检测完成：{count} 个点（{} 条候选）",
+                            result.candidates
+                        ));
+                    }
+                    Err(err) => {
+                        st.status = Some(format!("自动检测失败：{err}"));
+                    }
+                }
+                cx.notify();
+            });
+        })
+        .detach();
+    }
+
+    #[cfg(feature = "vision")]
+    pub(crate) fn start_rigid_tracking(&mut self, cx: &mut Context<Self>) {
+        let (source, doc_id) = {
+            let mut st = self.state.borrow_mut();
+            if st.auto_detect_running {
+                return;
+            }
+            let Some(source) = st.video.as_ref().map(|video| video.frame_source()) else {
+                st.status = Some("请先打开视频".into());
+                drop(st);
+                cx.notify();
+                return;
+            };
+            let doc_id = st.docs[st.active_doc].id;
+            st.auto_detect_running = true;
+            st.rigid_roi_mode = false;
+            st.motion_roi_mode = false;
+            st.status = Some("ArUco 刚体打标…".into());
+            (source, doc_id)
+        };
+        cx.notify();
+        let state = self.state.clone();
+        cx.spawn(async move |this, cx| {
+            let result = cx
+                .background_executor()
+                .spawn(async move { crate::rigid::detect_rigid(&source) })
+                .await;
+            let _ = this.update(cx, |_this, cx| {
+                let mut st = state.borrow_mut();
+                st.auto_detect_running = false;
+                if st.docs[st.active_doc].id != doc_id {
+                    st.status = Some("刚体打标完成，但已切换视频，结果已丢弃".into());
+                    cx.notify();
+                    return;
+                }
+                match result {
+                    Ok(result) => {
+                        let steps: Vec<_> = result
+                            .points
+                            .iter()
+                            .map(|point| {
+                                (
+                                    point.frame,
+                                    point.x,
+                                    point.y,
+                                    point.angle,
+                                    point.scale,
+                                    point.marker_count,
+                                )
+                            })
+                            .collect();
+                        let markers = result
+                            .markers
+                            .iter()
+                            .map(|marker| RigidBodyMarker {
+                                id: marker.id,
+                                corners: marker.corners,
+                            })
+                            .collect();
+                        let count = st.add_rigid_body(
+                            result.dictionary.clone(),
+                            markers,
+                            Vec::new(),
+                            &steps,
+                            "刚体检测",
+                        );
+                        st.status = Some(format!(
+                            "刚体打标完成：{count} 个点（{} 个标记，{}）",
+                            result.markers.len(),
+                            result.dictionary
+                        ));
+                    }
+                    Err(err) => {
+                        st.status = Some(format!("刚体打标失败：{err}"));
+                    }
+                }
+                cx.notify();
+            });
+        })
+        .detach();
+    }
+
+    #[cfg(feature = "vision")]
+    pub(crate) fn start_orb_tracking(
+        &mut self,
+        roi: (f32, f32, f32, f32),
+        reference_frame: usize,
+        cx: &mut Context<Self>,
+    ) {
+        let (source, doc_id) = {
+            let mut st = self.state.borrow_mut();
+            if st.auto_detect_running {
+                return;
+            }
+            let Some(source) = st.video.as_ref().map(|video| video.frame_source()) else {
+                st.status = Some("请先打开视频".into());
+                drop(st);
+                cx.notify();
+                return;
+            };
+            let doc_id = st.docs[st.active_doc].id;
+            st.rigid_roi_mode = false;
+            st.motion_roi_mode = false;
+            st.auto_detect_running = true;
+            st.status = Some("ORB 刚体跟踪…".into());
+            (source, doc_id)
+        };
+        cx.notify();
+        let state = self.state.clone();
+        cx.spawn(async move |this, cx| {
+            let result = cx
+                .background_executor()
+                .spawn(async move { crate::orb_track::detect_orb(&source, roi, reference_frame) })
+                .await;
+            let _ = this.update(cx, |_this, cx| {
+                let mut st = state.borrow_mut();
+                st.auto_detect_running = false;
+                if st.docs[st.active_doc].id != doc_id {
+                    st.status = Some("ORB 跟踪完成，但已切换视频，结果已丢弃".into());
+                    cx.notify();
+                    return;
+                }
+                match result {
+                    Ok(result) => {
+                        let steps: Vec<_> = result
+                            .points
+                            .iter()
+                            .map(|point| {
+                                (
+                                    point.frame,
+                                    point.x,
+                                    point.y,
+                                    point.angle,
+                                    point.scale,
+                                    point.marker_count,
+                                )
+                            })
+                            .collect();
+                        let count = st.add_rigid_body(
+                            "ORB".into(),
+                            Vec::new(),
+                            Vec::new(),
+                            &steps,
+                            "无标记刚体",
+                        );
+                        st.status = Some(format!(
+                            "ORB 刚体跟踪完成：{count} 个点（{} 帧有位姿）",
+                            result.detections
+                        ));
+                    }
+                    Err(err) => {
+                        st.status = Some(format!("ORB 刚体跟踪失败：{err}"));
+                    }
+                }
+                cx.notify();
+            });
+        })
+        .detach();
+    }
+
+    #[cfg(feature = "vision")]
+    pub(crate) fn start_motion_contour_tracking(
+        &mut self,
+        roi: (f32, f32, f32, f32),
+        reference_frame: usize,
+        cx: &mut Context<Self>,
+    ) {
+        let (source, doc_id, pure_mask) = {
+            let mut st = self.state.borrow_mut();
+            if st.auto_detect_running {
+                return;
+            }
+            let Some(source) = st.video.as_ref().map(|video| video.frame_source()) else {
+                st.status = Some("请先打开视频".into());
+                drop(st);
+                cx.notify();
+                return;
+            };
+            let doc_id = st.docs[st.active_doc].id;
+            let pure_mask = st.motion_pure_mask;
+            st.rigid_roi_mode = false;
+            st.motion_roi_mode = false;
+            st.auto_detect_running = true;
+            st.status = Some(if pure_mask {
+                "纯运动掩膜跟踪…".into()
+            } else {
+                "固定形状运动轮廓跟踪…".into()
+            });
+            (source, doc_id, pure_mask)
+        };
+        cx.notify();
+        let state = self.state.clone();
+        cx.spawn(async move |this, cx| {
+            let options = crate::motion_contour::MotionOptions {
+                pure_mask,
+                ..Default::default()
+            };
+            let result = cx
+                .background_executor()
+                .spawn(async move {
+                    crate::motion_contour::detect_motion_contour(
+                        &source,
+                        roi,
+                        reference_frame,
+                        options,
+                    )
+                })
+                .await;
+            let _ = this.update(cx, |_this, cx| {
+                let mut st = state.borrow_mut();
+                st.auto_detect_running = false;
+                if st.docs[st.active_doc].id != doc_id {
+                    st.status = Some("轮廓跟踪完成，但已切换视频，结果已丢弃".into());
+                    cx.notify();
+                    return;
+                }
+                match result {
+                    Ok(result) => {
+                        let steps: Vec<_> = result
+                            .points
+                            .iter()
+                            .map(|point| {
+                                (
+                                    point.frame,
+                                    point.x,
+                                    point.y,
+                                    point.angle,
+                                    point.scale,
+                                    point.marker_count,
+                                )
+                            })
+                            .collect();
+                        let label = if result.mask_mode == RigidMaskMode::PureMotion {
+                            "纯运动掩膜"
+                        } else {
+                            "固定形状轮廓"
+                        };
+                        let count = st.add_rigid_body_with(
+                            "MOTION".into(),
+                            Vec::new(),
+                            result.contour.clone(),
+                            &steps,
+                            label,
+                            result.mask_mode,
+                            &result.step_contours,
+                        );
+                        st.status = Some(format!(
+                            "{label}跟踪完成：{count} 个点（{} 帧有位姿）",
+                            result.detections
+                        ));
+                    }
+                    Err(err) => {
+                        st.status = Some(format!("运动轮廓跟踪失败：{err}"));
+                    }
+                }
+                cx.notify();
+            });
+        })
+        .detach();
     }
 }
 

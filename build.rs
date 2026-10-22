@@ -42,4 +42,26 @@ fn main() {
             let _ = fs::copy(&path, out.join(name));
         }
     }
+
+    // The official OpenCV Windows package ships one opencv_world DLL next to
+    // the import libraries. Keep it beside the executable for cargo run.
+    if let Ok(paths) = env::var("OPENCV_LINK_PATHS") {
+        for dir in paths.split(';').filter(|dir| !dir.is_empty()) {
+            let lib_dir = PathBuf::from(dir);
+            let Some(prefix) = lib_dir.parent() else {
+                continue;
+            };
+            let Ok(entries) = fs::read_dir(prefix.join("bin")) else {
+                continue;
+            };
+            for entry in entries.flatten() {
+                let name = entry.file_name();
+                let Some(name) = name.to_str() else { continue };
+                if name.starts_with("opencv_world") && name.ends_with(".dll") && !name.ends_with("d.dll")
+                {
+                    let _ = fs::copy(entry.path(), out.join(name));
+                }
+            }
+        }
+    }
 }

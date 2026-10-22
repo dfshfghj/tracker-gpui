@@ -82,10 +82,13 @@ impl PlotVar {
                 track.is_point_mass()
             }
             Self::Length => measurement == Some(MeasurementKind::Tape),
-            Self::Angle => matches!(
-                measurement,
-                Some(MeasurementKind::Tape | MeasurementKind::Protractor)
-            ),
+            Self::Angle => {
+                track.is_rigid_body()
+                    || matches!(
+                        measurement,
+                        Some(MeasurementKind::Tape | MeasurementKind::Protractor)
+                    )
+            }
             Self::Arm1 | Self::Arm2 => measurement == Some(MeasurementKind::Protractor),
             Self::Radius | Self::CenterX | Self::CenterY => {
                 measurement == Some(MeasurementKind::Circle)
@@ -158,40 +161,45 @@ impl PlotVar {
                 let b = coords.image_to_world(frame, handles[1].0, handles[1].1);
                 Some(((b.0 - a.0).powi(2) + (b.1 - a.1).powi(2)).sqrt() as f64)
             }
-            Self::Angle => match track.measurement_kind()? {
-                MeasurementKind::Tape => {
-                    let handles = track.handles(frame);
-                    if handles.len() < 2 {
-                        return None;
-                    }
-                    let a = coords.image_to_world(frame, handles[0].0, handles[0].1);
-                    let b = coords.image_to_world(frame, handles[1].0, handles[1].1);
-                    Some((b.1 - a.1).atan2(b.0 - a.0).to_degrees() as f64)
+            Self::Angle => {
+                if let Some(step) = track.rigid_step(frame) {
+                    return Some(step.angle.to_degrees() as f64);
                 }
-                MeasurementKind::Protractor => {
-                    let handles = track.handles(frame);
-                    if handles.len() < 3 {
-                        return None;
+                match track.measurement_kind()? {
+                    MeasurementKind::Tape => {
+                        let handles = track.handles(frame);
+                        if handles.len() < 2 {
+                            return None;
+                        }
+                        let a = coords.image_to_world(frame, handles[0].0, handles[0].1);
+                        let b = coords.image_to_world(frame, handles[1].0, handles[1].1);
+                        Some((b.1 - a.1).atan2(b.0 - a.0).to_degrees() as f64)
                     }
-                    let vertex = coords.image_to_world(frame, handles[0].0, handles[0].1);
-                    let arm1 = coords.image_to_world(frame, handles[1].0, handles[1].1);
-                    let arm2 = coords.image_to_world(frame, handles[2].0, handles[2].1);
-                    let v1 = (arm1.0 - vertex.0, arm1.1 - vertex.1);
-                    let v2 = (arm2.0 - vertex.0, arm2.1 - vertex.1);
-                    let len1 = (v1.0 * v1.0 + v1.1 * v1.1).sqrt();
-                    let len2 = (v2.0 * v2.0 + v2.1 * v2.1).sqrt();
-                    if len1 < 1e-6 || len2 < 1e-6 {
-                        return None;
+                    MeasurementKind::Protractor => {
+                        let handles = track.handles(frame);
+                        if handles.len() < 3 {
+                            return None;
+                        }
+                        let vertex = coords.image_to_world(frame, handles[0].0, handles[0].1);
+                        let arm1 = coords.image_to_world(frame, handles[1].0, handles[1].1);
+                        let arm2 = coords.image_to_world(frame, handles[2].0, handles[2].1);
+                        let v1 = (arm1.0 - vertex.0, arm1.1 - vertex.1);
+                        let v2 = (arm2.0 - vertex.0, arm2.1 - vertex.1);
+                        let len1 = (v1.0 * v1.0 + v1.1 * v1.1).sqrt();
+                        let len2 = (v2.0 * v2.0 + v2.1 * v2.1).sqrt();
+                        if len1 < 1e-6 || len2 < 1e-6 {
+                            return None;
+                        }
+                        Some(
+                            ((v1.0 * v2.0 + v1.1 * v2.1) / (len1 * len2))
+                                .clamp(-1.0, 1.0)
+                                .acos()
+                                .to_degrees() as f64,
+                        )
                     }
-                    Some(
-                        ((v1.0 * v2.0 + v1.1 * v2.1) / (len1 * len2))
-                            .clamp(-1.0, 1.0)
-                            .acos()
-                            .to_degrees() as f64,
-                    )
+                    MeasurementKind::Circle => None,
                 }
-                MeasurementKind::Circle => None,
-            },
+            }
             Self::Arm1 | Self::Arm2 => {
                 if track.measurement_kind() != Some(MeasurementKind::Protractor) {
                     return None;
