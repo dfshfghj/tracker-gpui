@@ -140,7 +140,7 @@ jobs:
           }
       - name: Restore trimmed OpenCV cache
         id: opencv-cache
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: opencv-prefix
           key: opencv-${{ env.OPENCV_VERSION }}-trim-windows-x86_64-v${{ env.OPENCV_CACHE_VERSION }}-${{ hashFiles('scripts/build-opencv-minimal.ps1') }}
@@ -148,6 +148,12 @@ jobs:
         if: steps.opencv-cache.outputs.cache-hit != 'true'
         shell: pwsh
         run: ./scripts/build-opencv-minimal.ps1 -Prefix "$PWD/opencv-prefix" -Version $env:OPENCV_VERSION
+      - name: Save trimmed OpenCV cache
+        if: steps.opencv-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: opencv-prefix
+          key: opencv-${{ env.OPENCV_VERSION }}-trim-windows-x86_64-v${{ env.OPENCV_CACHE_VERSION }}-${{ hashFiles('scripts/build-opencv-minimal.ps1') }}
       - name: Configure OpenCV
         shell: pwsh
         run: |
@@ -159,16 +165,26 @@ jobs:
           "OPENCV_INCLUDE_PATHS=$include" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
           "OPENCV_LINK_PATHS=$($lib.DirectoryName)" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
           "OPENCV_LINK_LIBS=opencv_world4120" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
+      - name: Install LLVM for libclang
+        shell: pwsh
+        run: |
+          # opencv-rust 0.101.1 generates bindings with libclang; its
+          # supported Windows toolchain is LLVM 22. The runner image ships
+          # LLVM 20, whose libclang crashes the generator subprocesses.
+          choco upgrade llvm --version=22.1.8 -y --no-progress
+          if ($LASTEXITCODE -ne 0) {
+            choco install llvm --version=22.1.8 -y --no-progress --force
+          }
+          $llvm = 'C:\Program Files\LLVM\bin'
+          if (!(Test-Path (Join-Path $llvm 'libclang.dll'))) {
+            throw "libclang.dll not found in $llvm"
+          }
+          & (Join-Path $llvm 'clang.exe') --version
+          "LIBCLANG_PATH=$llvm" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
         with:
-          key: windows-release-${{ env.FFMPEG_VERSION }}-${{ env.FFMPEG_CACHE_VERSION }}-opencv-${{ env.OPENCV_VERSION }}-${{ env.OPENCV_CACHE_VERSION }}-${{ hashFiles('scripts/configure-ffmpeg-minimal.sh', 'scripts/build-opencv-minimal.ps1') }}
-      - name: Ensure libclang is available
-        shell: pwsh
-        run: |
-          if (!(Test-Path 'C:\Program Files\LLVM\bin\libclang.dll')) {
-            choco install llvm --no-progress -y
-          }
+          key: windows-release-${{ env.FFMPEG_VERSION }}-${{ env.FFMPEG_CACHE_VERSION }}-${{ hashFiles('scripts/configure-ffmpeg-minimal.sh') }}
       - name: Build release
         env:
           LIBCLANG_PATH: C:\Program Files\LLVM\bin
@@ -277,24 +293,31 @@ jobs:
           retention-days: 14
       - name: Restore trimmed OpenCV cache
         id: opencv-cache
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: opencv-prefix
           key: opencv-${{ env.OPENCV_VERSION }}-trim-macos-${{ matrix.arch }}-v${{ env.OPENCV_CACHE_VERSION }}-${{ hashFiles('scripts/build-opencv-minimal.sh') }}
       - name: Build trimmed OpenCV
         if: steps.opencv-cache.outputs.cache-hit != 'true'
         run: bash scripts/build-opencv-minimal.sh "$PWD/opencv-prefix"
+      - name: Save trimmed OpenCV cache
+        if: steps.opencv-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: opencv-prefix
+          key: opencv-${{ env.OPENCV_VERSION }}-trim-macos-${{ matrix.arch }}-v${{ env.OPENCV_CACHE_VERSION }}-${{ hashFiles('scripts/build-opencv-minimal.sh') }}
       - name: Configure OpenCV
         run: |
           echo "OPENCV_PREFIX=$PWD/opencv-prefix" >> "$GITHUB_ENV"
-          echo "OPENCV_INCLUDE_PATHS=$PWD/opencv-prefix/include" >> "$GITHUB_ENV"
+          echo "OPENCV_INCLUDE_PATHS=$PWD/opencv-prefix/include/opencv4" >> "$GITHUB_ENV"
           echo "OPENCV_LINK_PATHS=$PWD/opencv-prefix/lib" >> "$GITHUB_ENV"
           echo "OPENCV_LINK_LIBS=opencv_world" >> "$GITHUB_ENV"
+          echo "OpenCV_DIR=$PWD/opencv-prefix/lib/cmake/opencv4" >> "$GITHUB_ENV"
           echo "DYLD_LIBRARY_PATH=$PWD/opencv-prefix/lib:${DYLD_LIBRARY_PATH:-}" >> "$GITHUB_ENV"
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
         with:
-          key: macos-${{ matrix.arch }}-release-${{ env.FFMPEG_VERSION }}-${{ env.FFMPEG_CACHE_VERSION }}-opencv-${{ env.OPENCV_VERSION }}-${{ env.OPENCV_CACHE_VERSION }}-${{ hashFiles('scripts/configure-ffmpeg-minimal.sh', 'scripts/build-opencv-minimal.sh') }}
+          key: macos-${{ matrix.arch }}-release-${{ env.FFMPEG_VERSION }}-${{ env.FFMPEG_CACHE_VERSION }}-${{ hashFiles('scripts/configure-ffmpeg-minimal.sh') }}
       - name: Build release app
         run: cargo build --release --all-features
       - name: Package .app
