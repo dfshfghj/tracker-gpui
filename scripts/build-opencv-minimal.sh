@@ -37,6 +37,7 @@ cmake -S "$SOURCE" -B "$BUILD" \
     -DBUILD_EXAMPLES=OFF \
     -DBUILD_DOCS=OFF \
     -DBUILD_opencv_apps=OFF \
+    -DBUILD_opencv_highgui=OFF \
     -DBUILD_opencv_python3=OFF \
     -DBUILD_JAVA=OFF \
     -DBUILD_opencv_java=OFF \

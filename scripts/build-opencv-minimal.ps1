@@ -26,7 +26,7 @@ if (!(Test-Path $source)) {
 cmake -S $source -B $build -G "Visual Studio 17 2022" -A x64 `
     -DCMAKE_BUILD_TYPE=Release `
     -DCMAKE_INSTALL_PREFIX="$Prefix" `
-    -DBUILD_LIST=core,imgproc,imgcodecs,video,objdetect,calib3d,features2d,flann `
+    "-DBUILD_LIST=core,imgproc,imgcodecs,video,objdetect,calib3d,features2d,flann" `
     -DBUILD_opencv_world=ON `
     -DBUILD_SHARED_LIBS=ON `
     -DBUILD_TESTS=OFF `
@@ -34,6 +34,7 @@ cmake -S $source -B $build -G "Visual Studio 17 2022" -A x64 `
     -DBUILD_EXAMPLES=OFF `
     -DBUILD_DOCS=OFF `
     -DBUILD_opencv_apps=OFF `
+    -DBUILD_opencv_highgui=OFF `
     -DBUILD_opencv_python3=OFF `
     -DBUILD_JAVA=OFF `
     -DBUILD_opencv_java=OFF `
