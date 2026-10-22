@@ -255,9 +255,6 @@ impl Render for Probe {
                 cx.listener(|this, ev: &MouseDownEvent, window, cx| {
                     window.focus(&this.focus, cx);
                     let mut st = this.state.borrow_mut();
-                    if st.consume_suppressed_stage_click() {
-                        return;
-                    }
                     st.inline_edit = None;
                     // The click that activates a freshly opened window must not drop a point.
                     if st.created.elapsed().as_millis() < 500 {
@@ -1943,23 +1940,33 @@ impl Render for Probe {
             .border_color(c(0x1d2a3d))
             .text_color(c(0xdbe6f5))
             .child(menu_bar(state.clone(), cx));
-        let menu_overlay = if state.borrow().menu_open.is_some() {
-            div()
+        let menu_overlay = if state.borrow().menu_open.is_some()
+            || state.borrow().tool_menu.is_some()
+            || state.borrow().plot_var_menu.is_some()
+        {
+            // Keep the menu bar available when switching between its menus.
+            let top = if state.borrow().tool_menu.is_some()
+                || state.borrow().plot_var_menu.is_some()
+            {
+                px(0.)
+            } else {
+                TITLE_BAR_HEIGHT
+            };
+            crate::overlay::overlay_surface()
                 .absolute()
-                .top(TITLE_BAR_HEIGHT)
+                .top(top)
+                .bottom(px(0.))
                 .left(px(0.))
-                .size_full()
+                .right(px(0.))
                 .bg(transparent_black())
-                .on_mouse_down(
-                    MouseButton::Left,
-                    cx.listener(|this, _ev, _window, cx| {
-                        let mut st = this.state.borrow_mut();
-                        st.menu_open = None;
-                        st.suppress_next_stage_click();
-                        drop(st);
-                        cx.notify();
-                    }),
-                )
+                .on_any_mouse_down(cx.listener(|this, _ev, _window, cx| {
+                    let mut st = this.state.borrow_mut();
+                    st.menu_open = None;
+                    st.tool_menu = None;
+                    st.plot_var_menu = None;
+                    drop(st);
+                    cx.notify();
+                }))
                 .into_any_element()
         } else {
             div().into_any_element()
@@ -1967,48 +1974,6 @@ impl Render for Probe {
         let popup = menu_popup(state.clone(), cx);
         let tool_popup = tool_menu_popup(state.clone(), cx);
         let plot_var_popup = plot_var_popup(state.clone(), cx);
-        let plot_var_overlay = if state.borrow().plot_var_menu.is_some() {
-            div()
-                .absolute()
-                .top(px(0.))
-                .left(px(0.))
-                .size_full()
-                .bg(transparent_black())
-                .on_mouse_down(
-                    MouseButton::Left,
-                    cx.listener(|this, _ev, _window, cx| {
-                        let mut st = this.state.borrow_mut();
-                        st.plot_var_menu = None;
-                        st.suppress_next_stage_click();
-                        drop(st);
-                        cx.notify();
-                    }),
-                )
-                .into_any_element()
-        } else {
-            div().into_any_element()
-        };
-        let tool_overlay = if state.borrow().tool_menu.is_some() {
-            div()
-                .absolute()
-                .top(px(0.))
-                .left(px(0.))
-                .size_full()
-                .bg(transparent_black())
-                .on_mouse_down(
-                    MouseButton::Left,
-                    cx.listener(|this, _ev, _window, cx| {
-                        let mut st = this.state.borrow_mut();
-                        st.tool_menu = None;
-                        st.suppress_next_stage_click();
-                        drop(st);
-                        cx.notify();
-                    }),
-                )
-                .into_any_element()
-        } else {
-            div().into_any_element()
-        };
         let modal = modal_view(state.clone(), cx);
 
         div()
@@ -2033,9 +1998,7 @@ impl Render for Probe {
             .child(bottom)
             .child(menu_overlay)
             .child(popup)
-            .child(tool_overlay)
             .child(tool_popup)
-            .child(plot_var_overlay)
             .child(plot_var_popup)
             .child(modal)
             .into_any_element()

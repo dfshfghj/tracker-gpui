@@ -150,7 +150,6 @@ pub(crate) fn group_icon_button(
                         {
                             let mut st = this.state.borrow_mut();
                             st.tool_menu = None;
-                            st.suppress_next_stage_click();
                         }
                         left_action(this, cx);
                         cx.notify();

@@ -44,6 +44,7 @@ mod contour_math;
 mod contour_util;
 mod icons;
 mod menus;
+mod overlay;
 mod modals;
 #[cfg(feature = "vision")]
 mod motion_contour;
@@ -565,7 +566,6 @@ struct State {
     tool_menu_pos: (f32, f32),
     plot_var_menu: Option<(usize, PlotAxis)>,
     plot_var_pos: (f32, f32),
-    suppress_stage_click_until: Option<Instant>,
     shift_down: bool,
     inline_edit: Option<InlineEdit>,
     tab_scroll: ScrollHandle,

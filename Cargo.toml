@@ -2,6 +2,7 @@
 name = "tracker-gpui"
 version = "0.1.0"
 edition = "2021"
+rust-version = "1.99"
 license = "GPL-3.0-or-later"
 repository = "https://github.com/dfshfghj/tracker-gpui"
 
@@ -32,13 +33,6 @@ opencv = { version = "0.101.1", optional = true, default-features = false, featu
   "calib3d",
 ] }
 
-# gpui-pre-util 0.3.9 uses the still-unstable `slice::as_array`.
-# Local patch keeps the demo building on stable Rust.
-[patch.crates-io]
-gpui-pre-util = { path = "vendor/gpui-pre-util" }
-gpui-pre = { path = "vendor/gpui-pre" }
-gpui-base = { path = "vendor/gpui-base" }
-
 [profile.dev]
 opt-level = 1
 
@@ -52,3 +46,6 @@ codegen-units = 1
 debug = false
 strip = "symbols"
 incremental = false
+
+[dev-dependencies]
+gpui = { package = "gpui-pre", version = "=0.3.9", features = ["test-support"] }

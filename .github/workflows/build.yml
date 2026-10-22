@@ -181,14 +181,14 @@ jobs:
           }
           & (Join-Path $llvm 'clang.exe') --version
           "LIBCLANG_PATH=$llvm" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@1.99.1
       - uses: Swatinem/rust-cache@v2
         with:
           key: windows-release-${{ env.FFMPEG_VERSION }}-${{ env.FFMPEG_CACHE_VERSION }}-${{ hashFiles('scripts/configure-ffmpeg-minimal.sh') }}
       - name: Build release
         env:
           LIBCLANG_PATH: C:\Program Files\LLVM\bin
-        run: cargo build --release --all-features
+        run: cargo build --locked --release --all-features
       - name: Package app
         shell: pwsh
         run: |
@@ -314,12 +314,12 @@ jobs:
           echo "OPENCV_LINK_LIBS=opencv_world" >> "$GITHUB_ENV"
           echo "OpenCV_DIR=$PWD/opencv-prefix/lib/cmake/opencv4" >> "$GITHUB_ENV"
           echo "DYLD_LIBRARY_PATH=$PWD/opencv-prefix/lib:${DYLD_LIBRARY_PATH:-}" >> "$GITHUB_ENV"
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@1.99.1
       - uses: Swatinem/rust-cache@v2
         with:
           key: macos-${{ matrix.arch }}-release-${{ env.FFMPEG_VERSION }}-${{ env.FFMPEG_CACHE_VERSION }}-${{ hashFiles('scripts/configure-ffmpeg-minimal.sh') }}
       - name: Build release app
-        run: cargo build --release --all-features
+        run: cargo build --locked --release --all-features
       - name: Package .app
         run: |
           APP="dist/Tracker GPUI.app"

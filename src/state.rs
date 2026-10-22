@@ -1624,7 +1624,6 @@ impl State {
             tool_menu_pos: (0.0, 0.0),
             plot_var_menu: None,
             plot_var_pos: (0.0, 0.0),
-            suppress_stage_click_until: None,
             shift_down: false,
             inline_edit: None,
             tab_scroll: ScrollHandle::new(),
@@ -2155,17 +2154,6 @@ impl State {
                 false
             }
         }
-    }
-
-    pub(crate) fn suppress_next_stage_click(&mut self) {
-        self.suppress_stage_click_until = Some(Instant::now());
-    }
-
-    pub(crate) fn consume_suppressed_stage_click(&mut self) -> bool {
-        let Some(when) = self.suppress_stage_click_until.take() else {
-            return false;
-        };
-        when.elapsed() < std::time::Duration::from_millis(300)
     }
 
     pub(crate) fn apply_theme_mode(&mut self, mode: ThemeMode) {

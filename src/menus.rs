@@ -29,7 +29,6 @@ pub(crate) fn menu_item(
                     {
                         let mut st = this.state.borrow_mut();
                         st.menu_open = None;
-                        st.suppress_next_stage_click();
                     }
                     action(this, cx);
                     cx.notify();
@@ -64,7 +63,6 @@ pub(crate) fn menu_item_dynamic(
                     {
                         let mut st = this.state.borrow_mut();
                         st.menu_open = None;
-                        st.suppress_next_stage_click();
                     }
                     action(this, cx);
                     cx.notify();
@@ -185,7 +183,6 @@ pub(crate) fn tool_menu_item(
                 {
                     let mut st = this.state.borrow_mut();
                     st.tool_menu = None;
-                    st.suppress_next_stage_click();
                 }
                 action(this, cx);
                 cx.notify();
@@ -412,7 +409,7 @@ pub(crate) fn tool_menu_popup(state: Rc<RefCell<State>>, cx: &mut Context<Probe>
             }
         }
     }
-    div()
+    crate::overlay::overlay_surface()
         .absolute()
         .top(px(y))
         .left(px(x + 8.0))
@@ -479,7 +476,6 @@ pub(crate) fn plot_var_popup(state: Rc<RefCell<State>>, cx: &mut Context<Probe>)
                         let mut st = this.state.borrow_mut();
                         st.set_plot_var(plot_index, axis, var);
                         st.plot_var_menu = None;
-                        st.suppress_next_stage_click();
                         drop(st);
                         cx.notify();
                     }),
@@ -489,7 +485,7 @@ pub(crate) fn plot_var_popup(state: Rc<RefCell<State>>, cx: &mut Context<Probe>)
                 .into_any_element(),
         );
     }
-    div()
+    crate::overlay::overlay_surface()
         .absolute()
         .top(px(y))
         .left(px(x + 8.0))
@@ -1122,7 +1118,7 @@ pub(crate) fn menu_popup(state: Rc<RefCell<State>>, cx: &mut Context<Probe>) -> 
         }
     }
 
-    div()
+    crate::overlay::overlay_surface()
         .absolute()
         .top(TITLE_BAR_HEIGHT)
         .left(px(x.clamp(4.0, 340.0)))

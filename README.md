@@ -284,7 +284,8 @@ swscale/swresample` 合计约 113MB；其中编码器、muxer、filter、网络�
 
 ## 构建
 
-需要 Rust stable、FFmpeg 9 shared 开发包，以及 `libclang`（`ffmpeg-sys-the-third`
+项目通过 `rust-toolchain.toml` 固定使用 Rust stable 1.99.1，Windows/macOS CI
+也使用相同版本。需要安装 rustup、FFmpeg 9 shared 开发包，以及 `libclang`（`ffmpeg-sys-the-third`
 的 bindgen 需要）。平台差异由脚本处理，`.cargo/config.toml` 不再写死机器路径。
 
 **Windows**
@@ -305,10 +306,19 @@ brew install ffmpeg pkg-config
 复制到 `target/<profile>/`，不再复制 avdevice/avfilter。使用 CI 下载的 FFmpeg
 artifact 时，先解压并把该目录设为 `FFMPEG_DIR`。
 
-`gpui-kit` 0.7.3 在 Rust 1.91.1 上有 3 处未稳定 API，需要本项目 `vendor/` 里的补丁
-（`slice::as_array`、`hint::cold_path`、`AtomicU64::try_update`）。vendor 目录需
-随仓库提交；升级 gpui-kit 后应优先移除对应 patch。首次编译（含 gpui 依赖树）
-约 10 分钟；之后应用增量约 10–20 秒。
+`gpui-kit` 0.7.3 及其依赖直接从 crates.io 获取，版本由 `Cargo.lock` 锁定。
+旧版 Rust 1.91.1 所需的三个兼容补丁已移除；`slice::as_array`、
+`hint::cold_path`、`AtomicU64::try_update` 均已在当前工具链稳定，项目不再维护
+这些依赖的 vendor 副本。首次编译（含 gpui 依赖树）约 10 分钟；之后应用增量
+约 10–20 秒。
+
+安装 rustup 后，在项目目录运行 `cargo` 会自动安装固定的工具链及
+Clippy/rustfmt。验证命令（Windows）：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/build-windows.ps1 check --locked
+powershell -ExecutionPolicy Bypass -File scripts/build-windows.ps1 test --locked --bin tracker-gpui
+```
 
 ### 脚本化测试
 

@@ -24,7 +24,6 @@ pub(crate) fn modal_button(
         .on_mouse_down(
             MouseButton::Left,
             cx.listener(move |this, _ev, _window, cx| {
-                this.state.borrow_mut().suppress_next_stage_click();
                 action(this, cx);
                 cx.notify();
             }),
@@ -128,7 +127,7 @@ pub(crate) fn calibration_modal_view(
 
     let apply_state = state.clone();
     let cancel_state = state.clone();
-    div()
+    crate::overlay::overlay_surface()
         .absolute()
         .top(px(0.))
         .left(px(0.))
@@ -137,13 +136,6 @@ pub(crate) fn calibration_modal_view(
         .items_center()
         .justify_center()
         .bg(c(0x000000).alpha(0.55))
-        .on_mouse_down(
-            MouseButton::Left,
-            cx.listener(|this, _ev, _window, cx| {
-                this.state.borrow_mut().suppress_next_stage_click();
-                cx.notify();
-            }),
-        )
         .child(
             div()
                 .w(px(480.))
@@ -278,7 +270,7 @@ pub(crate) fn operations_modal_view(
                 .child(div().flex_1().text_color(c(0x9fb2cc)).child(keys)),
         );
     }
-    div()
+    crate::overlay::overlay_surface()
         .absolute()
         .top(px(0.))
         .left(px(0.))
@@ -287,13 +279,6 @@ pub(crate) fn operations_modal_view(
         .items_center()
         .justify_center()
         .bg(c(0x000000).alpha(0.55))
-        .on_mouse_down(
-            MouseButton::Left,
-            cx.listener(|this, _ev, _window, cx| {
-                this.state.borrow_mut().suppress_next_stage_click();
-                cx.notify();
-            }),
-        )
         .child(
             div()
                 .w(px(450.))
@@ -435,7 +420,7 @@ pub(crate) fn modal_view(state: Rc<RefCell<State>>, cx: &mut Context<Probe>) -> 
         Modal::Calibration | Modal::Operations => unreachable!(),
     };
 
-    div()
+    crate::overlay::overlay_surface()
         .absolute()
         .top(px(0.))
         .left(px(0.))
@@ -444,13 +429,6 @@ pub(crate) fn modal_view(state: Rc<RefCell<State>>, cx: &mut Context<Probe>) -> 
         .items_center()
         .justify_center()
         .bg(c(0x000000).alpha(0.55))
-        .on_mouse_down(
-            MouseButton::Left,
-            cx.listener(|this, _ev, _window, cx| {
-                this.state.borrow_mut().suppress_next_stage_click();
-                cx.notify();
-            }),
-        )
         .child(
             div()
                 .w(px(460.))
