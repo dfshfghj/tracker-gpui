@@ -1651,6 +1651,8 @@ impl State {
             scrubbing: false,
             left_open: true,
             right_open: true,
+            left_width: 260.,
+            right_width: 400.,
             right_view: RightView::Inspector,
             textures_to_drop: Vec::new(),
             rigid_roi_mode: false,

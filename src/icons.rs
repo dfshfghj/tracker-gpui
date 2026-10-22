@@ -29,9 +29,16 @@ pub(crate) const ICON_TAPE: &str = r#"<svg xmlns="http://www.w3.org/2000/svg" vi
 pub(crate) const ICON_PROTRACTOR: &str = r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke='#000' stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 17a8 8 0 0 1 16 0"/><path d="M12 17V9"/><path d="M6 17h12"/><path d="m8 12-1 1"/><path d="M12 9v2"/><path d="m16 12 1 1"/></svg>"#;
 pub(crate) const ICON_CIRCLE_FIT: &str = r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke='#000' stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><circle cx="4" cy="12" r="1.3"/><circle cx="20" cy="12" r="1.3"/><circle cx="12" cy="4" r="1.3"/></svg>"#;
 
+pub(crate) const ICON_CLOSE: &str = r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke='#000' stroke-width="1.8" stroke-linecap="round"><path d="m6 6 12 12M18 6 6 18"/></svg>"#;
+
 pub(crate) struct TooltipLabel {
     text: SharedString,
 }
+
+pub(crate) const ICON_SIDEBAR_LEFT: &str = r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke='#000' stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/></svg>"#;
+pub(crate) const ICON_SIDEBAR_RIGHT: &str = r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke='#000' stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M15 4v16"/></svg>"#;
+pub(crate) const ICON_SIDEBAR_LEFT_OPEN: &str = r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke='#000' stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h4v16H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z" fill='#000' stroke="none"/><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/></svg>"#;
+pub(crate) const ICON_SIDEBAR_RIGHT_OPEN: &str = r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke='#000' stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 4h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-4Z" fill='#000' stroke="none"/><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M15 4v16"/></svg>"#;
 
 impl Render for TooltipLabel {
     fn render(&mut self, _window: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {

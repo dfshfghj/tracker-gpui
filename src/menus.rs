@@ -161,14 +161,16 @@ pub(crate) fn menu_bar(state: Rc<RefCell<State>>, cx: &mut Context<Probe>) -> im
                 .child(label),
         );
     }
-    bar.child(div().flex_1()).child(
-        div()
-            .max_w(px(300.))
-            .truncate()
-            .text_xs()
-            .text_color(c(0x5f6f88))
-            .child(project_label),
-    )
+    bar.child(div().flex_1())
+        .child(
+            div()
+                .max_w(px(300.))
+                .truncate()
+                .text_xs()
+                .text_color(c(0x5f6f88))
+                .child(project_label),
+        )
+        .child(layout_controls(&state.borrow(), cx))
 }
 
 pub(crate) fn tool_menu_item(
@@ -698,21 +700,21 @@ pub(crate) fn menu_popup(state: Rc<RefCell<State>>, cx: &mut Context<Probe>) -> 
                 (st.left_open, st.right_open)
             };
             items.push(menu_item_dynamic(
-                check(tr("menu.item.workspace"), left_open),
+                format!("{}  {}", check(tr("menu.item.workspace"), left_open), sidebar_shortcut(true)),
                 44,
                 true,
                 cx,
                 move |this, _cx| {
-                    this.state.borrow_mut().left_open = !left_open;
+                    this.state.borrow_mut().toggle_sidebar(true);
                 },
             ));
             items.push(menu_item_dynamic(
-                check(tr("menu.item.inspector"), right_open),
+                format!("{}  {}", check(tr("menu.item.inspector"), right_open), sidebar_shortcut(false)),
                 45,
                 true,
                 cx,
                 move |this, _cx| {
-                    this.state.borrow_mut().right_open = !right_open;
+                    this.state.borrow_mut().toggle_sidebar(false);
                 },
             ));
         }

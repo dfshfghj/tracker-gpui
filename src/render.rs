@@ -1026,7 +1026,7 @@ impl Render for Probe {
         // ---- left panel: workspace / video tree ----
         let left = {
             if !state.borrow().left_open {
-                collapsed_rail(true, cx)
+                None
             } else {
                 let (workdir_name, workdir_path, tree, has_workdir) = {
                     let st = state.borrow();
@@ -1086,8 +1086,9 @@ impl Render for Probe {
                         .into_any_element()
                 };
 
-                div()
-                    .w(px(260.))
+                let panel = div()
+                    .w_full()
+                    .min_w(px(0.))
                     .flex_none()
                     .h_full()
                     .flex()
@@ -1095,8 +1096,6 @@ impl Render for Probe {
                     .gap_2()
                     .p_3()
                     .bg(c(0x0d1420))
-                    .border_r_1()
-                    .border_color(c(0x1d2a3d))
                     .child(
                         div()
                             .w_full()
@@ -1116,7 +1115,7 @@ impl Render for Probe {
                             .child(refresh)
                             .child(icon_button(
                                 "collapse-left",
-                                ICON_BACK1,
+                                ICON_CLOSE,
                                 tr("toolbar.collapse_workspace"),
                                 20.0,
                                 12.0,
@@ -1137,14 +1136,15 @@ impl Render for Probe {
                             .child(workdir_path),
                     )
                     .child(tree_body)
-                    .into_any_element()
+                    .into_any_element();
+                Some(panel)
             }
         };
 
         // ---- right panel: properties + data table ----
         let right = {
             if !state.borrow().right_open {
-                collapsed_rail(false, cx)
+                None
             } else {
                 let st = state.borrow();
                 let track = st.tracks.get(st.active);
@@ -1633,8 +1633,9 @@ impl Render for Probe {
                 let has_plot = track.map_or(false, |track| track.is_point_mass());
                 let is_point_mass = track.map_or(false, |track| track.is_point_mass());
                 let right_view = st.right_view;
-                div()
-                    .w(px(400.))
+                let panel = div()
+                    .w_full()
+                    .min_w(px(0.))
                     .flex_none()
                     .h_full()
                     .min_h(px(0.))
@@ -1644,8 +1645,6 @@ impl Render for Probe {
                     .gap_2()
                     .p_3()
                     .bg(c(0x0d1420))
-                    .border_l_1()
-                    .border_color(c(0x1d2a3d))
                     .child(
                         div()
                             .w_full()
@@ -1680,7 +1679,7 @@ impl Render for Probe {
                             ))
                             .child(icon_button(
                                 "collapse-right",
-                                ICON_FWD1,
+                                ICON_CLOSE,
                                 tr("inspector.collapse"),
                                 20.0,
                                 12.0,
@@ -1866,7 +1865,8 @@ impl Render for Probe {
                                 .child(status),
                         )
                     })
-                    .into_any_element()
+                    .into_any_element();
+                Some(panel)
             }
         };
 
@@ -2007,6 +2007,7 @@ impl Render for Probe {
         let tool_popup = tool_menu_popup(state.clone(), cx);
         let plot_var_popup = plot_var_popup(state.clone(), cx);
         let modal = modal_view(state.clone(), cx);
+        let workspace = self.render_workspace_layout(left, center.into_any_element(), right, cx);
 
         div()
             .size_full()
@@ -2015,18 +2016,17 @@ impl Render for Probe {
             .flex_col()
             .bg(c(0x070b12))
             .text_color(c(0xdbe6f5))
+            .key_context("Tracker")
+            .on_action(cx.listener(|this, _: &ToggleWorkspace, _, cx| {
+                this.state.borrow_mut().toggle_sidebar(true);
+                cx.notify();
+            }))
+            .on_action(cx.listener(|this, _: &ToggleInspector, _, cx| {
+                this.state.borrow_mut().toggle_sidebar(false);
+                cx.notify();
+            }))
             .child(title_bar)
-            .child(
-                div()
-                    .flex_1()
-                    .min_h(px(0.))
-                    .w_full()
-                    .overflow_hidden()
-                    .flex()
-                    .child(left)
-                    .child(center)
-                    .child(right),
-            )
+            .child(workspace)
             .child(bottom)
             .child(menu_overlay)
             .child(popup)

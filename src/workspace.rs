@@ -1,11 +1,189 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
+use gpui_component::resizable::{h_resizable, resizable_panel, ResizableState};
 use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::*;
 
 use crate::i18n::tr;
 use crate::*;
+
+gpui_kit::actions!(tracker_layout, [ToggleWorkspace, ToggleInspector]);
+
+pub(crate) struct PanelLayout {
+    visible: (bool, bool),
+    panels: Entity<ResizableState>,
+}
+
+impl Probe {
+    pub(crate) fn render_workspace_layout(
+        &mut self,
+        left: Option<AnyElement>,
+        center: AnyElement,
+        right: Option<AnyElement>,
+        cx: &mut Context<Self>,
+    ) -> AnyElement {
+        let visible = (left.is_some(), right.is_some());
+        // Panel slots follow the visible children. Rebuild their native state
+        // when visibility changes so a sidebar's slot cannot become the canvas
+        // (or the other sidebar). Sidebar widths live outside those slots.
+        if self.panel_layout.as_ref().map(|layout| layout.visible) != Some(visible) {
+            self.panel_layout = Some(PanelLayout {
+                visible,
+                panels: cx.new(|_| ResizableState::default()),
+            });
+        }
+        let panels = &self.panel_layout.as_ref().unwrap().panels;
+        let (left_width, right_width) = {
+            let st = self.state.borrow();
+            (st.left_width, st.right_width)
+        };
+        let mut group = h_resizable("workspace-layout").with_state(panels);
+        if let Some(left) = left {
+            group = group.child(
+                resizable_panel()
+                    .size(px(left_width))
+                    .size_range(px(180.)..px(600.))
+                    .flex_none()
+                    .child(left),
+            );
+        }
+        group = group.child(
+            resizable_panel()
+                .size_range(px(320.)..Pixels::MAX)
+                .child(center),
+        );
+        if let Some(right) = right {
+            group = group.child(
+                resizable_panel()
+                    .size(px(right_width))
+                    .size_range(px(280.)..px(900.))
+                    .flex_none()
+                    .child(right),
+            );
+        }
+        let state = self.state.clone();
+        let group = group.on_resize(move |panels, _, cx| {
+            let sizes = panels.read(cx).sizes();
+            let mut st = state.borrow_mut();
+            if visible.0 {
+                st.left_width = f32::from(sizes[0]);
+            }
+            if visible.1 {
+                st.right_width = f32::from(*sizes.last().unwrap());
+            }
+        });
+        div()
+            .flex_1()
+            .min_h(px(0.))
+            .w_full()
+            .overflow_hidden()
+            .child(group)
+            .into_any_element()
+    }
+}
+
+pub(crate) fn init_layout_keybindings(cx: &mut App) {
+    cx.bind_keys([
+        KeyBinding::new(
+            if cfg!(target_os = "macos") {
+                "cmd-b"
+            } else {
+                "ctrl-b"
+            },
+            ToggleWorkspace,
+            Some("Tracker"),
+        ),
+        KeyBinding::new(
+            if cfg!(target_os = "macos") {
+                "cmd-alt-b"
+            } else {
+                "ctrl-alt-b"
+            },
+            ToggleInspector,
+            Some("Tracker"),
+        ),
+    ]);
+}
+
+pub(crate) fn sidebar_shortcut(left: bool) -> &'static str {
+    match (cfg!(target_os = "macos"), left) {
+        (true, true) => "Cmd+B",
+        (true, false) => "Cmd+Alt+B",
+        (false, true) => "Ctrl+B",
+        (false, false) => "Ctrl+Alt+B",
+    }
+}
+
+impl State {
+    pub(crate) fn toggle_sidebar(&mut self, left: bool) {
+        let open = if left {
+            &mut self.left_open
+        } else {
+            &mut self.right_open
+        };
+        *open = !*open;
+        self.menu_open = None;
+        self.tool_menu = None;
+        self.plot_var_menu = None;
+    }
+}
+
+pub(crate) fn layout_controls(state: &State, cx: &mut Context<Probe>) -> impl IntoElement {
+    div()
+        .flex()
+        .flex_none()
+        .items_center()
+        .gap_1()
+        .ml_2()
+        .occlude()
+        .child(icon_button(
+            "toggle-workspace",
+            if state.left_open {
+                ICON_SIDEBAR_LEFT_OPEN
+            } else {
+                ICON_SIDEBAR_LEFT
+            },
+            format!(
+                "{} ({})",
+                tr(if state.left_open {
+                    "toolbar.collapse_workspace"
+                } else {
+                    "rail.expand_workspace"
+                }),
+                sidebar_shortcut(true)
+            ),
+            26.,
+            16.,
+            false,
+            true,
+            cx,
+            |this, _| this.state.borrow_mut().toggle_sidebar(true),
+        ))
+        .child(icon_button(
+            "toggle-inspector",
+            if state.right_open {
+                ICON_SIDEBAR_RIGHT_OPEN
+            } else {
+                ICON_SIDEBAR_RIGHT
+            },
+            format!(
+                "{} ({})",
+                tr(if state.right_open {
+                    "inspector.collapse"
+                } else {
+                    "rail.expand_inspector"
+                }),
+                sidebar_shortcut(false)
+            ),
+            26.,
+            16.,
+            false,
+            true,
+            cx,
+            |this, _| this.state.borrow_mut().toggle_sidebar(false),
+        ))
+}
 
 pub(crate) fn scan_videos(dir: &std::path::Path, depth: usize) -> Vec<FileNode> {
     if depth == 0 {
@@ -328,45 +506,6 @@ pub(crate) fn tab_bar(state: Rc<RefCell<State>>, cx: &mut Context<Probe>) -> imp
     bar.child(tabs_area)
 }
 
-pub(crate) fn collapsed_rail(left_side: bool, cx: &mut Context<Probe>) -> AnyElement {
-    let (id, icon, tooltip) = if left_side {
-        ("rail-left", ICON_FWD1, tr("rail.expand_workspace"))
-    } else {
-        ("rail-right", ICON_BACK1, tr("rail.expand_inspector"))
-    };
-    div()
-        .w(px(24.))
-        .flex_none()
-        .h_full()
-        .flex()
-        .flex_col()
-        .items_center()
-        .pt_2()
-        .bg(c(0x0d1420))
-        .when(left_side, |this| this.border_r_1())
-        .when(!left_side, |this| this.border_l_1())
-        .border_color(c(0x1d2a3d))
-        .child(icon_button(
-            id,
-            icon,
-            tooltip,
-            20.0,
-            12.0,
-            false,
-            true,
-            cx,
-            move |this, _cx| {
-                let mut st = this.state.borrow_mut();
-                if left_side {
-                    st.left_open = true;
-                } else {
-                    st.right_open = true;
-                }
-            },
-        ))
-        .into_any_element()
-}
-
 pub(crate) fn video_controls(
     state: Rc<RefCell<State>>,
     cx: &mut Context<Probe>,
@@ -531,7 +670,11 @@ pub(crate) fn video_controls(
         (
             Cmd::Play,
             if playing { ICON_PAUSE } else { ICON_PLAY },
-            if playing { tr("transport.pause") } else { tr("transport.play") },
+            if playing {
+                tr("transport.pause")
+            } else {
+                tr("transport.play")
+            },
         ),
         (Cmd::Fwd1, ICON_FWD1, tr("transport.fwd1")),
         (Cmd::Fwd10, ICON_FWD10, tr("transport.fwd10")),

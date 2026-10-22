@@ -595,6 +595,8 @@ struct State {
     scrubbing: bool,
     left_open: bool,
     right_open: bool,
+    left_width: f32,
+    right_width: f32,
     right_view: RightView,
     textures_to_drop: Vec<Arc<RenderImage>>,
     rigid_roi_mode: bool,
@@ -639,6 +641,7 @@ struct Probe {
     tracker_window: Option<AnyWindowHandle>,
     pending_settings_window: bool,
     settings_window: Option<AnyWindowHandle>,
+    panel_layout: Option<PanelLayout>,
     main_hwnd: Option<isize>,
     owner_hwnd: Option<isize>,
     owner_applied: bool,
@@ -659,6 +662,7 @@ fn main() {
         .with_assets(gpui_kit::assets::Assets)
         .run(move |cx| {
             gpui_kit::init(cx);
+            init_layout_keybindings(cx);
             cx.bind_keys([KeyBinding::new(
                 "escape",
                 gpui_kit::base::actions::Cancel,

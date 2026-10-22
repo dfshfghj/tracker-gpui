@@ -1158,8 +1158,8 @@ help:
     en: Side Panels
     zh-CN: 侧栏
   sidebar_keys:
-    en: The title-bar arrow collapses a panel, the thin rail expands it; the View menu toggles both
-    zh-CN: 标题栏箭头收起；折叠窄条展开；View 菜单可切换左右侧栏
+    en: "Use the top-right layout buttons or View menu. Ctrl/Cmd+B toggles the workspace; Ctrl/Cmd+Alt+B toggles the inspector. The × in each panel header hides that panel. Drag the dividers next to the canvas to resize the panels."
+    zh-CN: "右上角布局按钮或 View 菜单切换侧栏；Ctrl/Cmd+B 切换工作区，Ctrl/Cmd+Alt+B 切换属性栏；侧栏标题中的 × 可就近收起，拖动画布两侧的分隔线可调整宽度。"
 
 tracker_ui:
   title:
