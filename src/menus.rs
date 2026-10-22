@@ -4,17 +4,30 @@ use std::rc::Rc;
 use gpui_component::TITLE_BAR_HEIGHT;
 use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::*;
+use rust_i18n::t;
 
+use crate::i18n::tr;
 use crate::*;
 
+/// `[x] Label` / `[ ] Label`, used by every checkbox-style menu item.
+pub(crate) fn check(label: String, on: bool) -> String {
+    t!(
+        "menu.check",
+        label = label,
+        mark = if on { "x" } else { " " }
+    )
+    .to_string()
+}
+
 pub(crate) fn menu_item(
-    label: &'static str,
+    label: impl Into<String>,
     enabled: bool,
     cx: &mut Context<Probe>,
     action: impl Fn(&mut Probe, &mut Context<Probe>) + 'static,
 ) -> AnyElement {
+    let label = label.into();
     div()
-        .id(label)
+        .id(label.clone())
         .w_full()
         .flex()
         .items_center()
@@ -91,17 +104,17 @@ pub(crate) fn menu_bar(state: Rc<RefCell<State>>, cx: &mut Context<Probe>) -> im
                 .as_ref()
                 .and_then(|path| path.file_name())
                 .and_then(|name| name.to_str())
-                .unwrap_or("未命名项目")
-                .to_string(),
+                .map(|name| name.to_string())
+                .unwrap_or_else(|| tr("app.untitled_project")),
         )
     };
     let entries = [
-        (MenuId::File, "File"),
-        (MenuId::Edit, "Edit"),
-        (MenuId::View, "View"),
-        (MenuId::Tracks, "Tracks"),
-        (MenuId::Coords, "Coords"),
-        (MenuId::Help, "Help"),
+        (MenuId::File, tr("menu.bar.file")),
+        (MenuId::Edit, tr("menu.bar.edit")),
+        (MenuId::View, tr("menu.bar.view")),
+        (MenuId::Tracks, tr("menu.bar.tracks")),
+        (MenuId::Coords, tr("menu.bar.coords")),
+        (MenuId::Help, tr("menu.bar.help")),
     ];
     let mut bar = div()
         .h_full()
@@ -214,7 +227,7 @@ pub(crate) fn tool_menu_popup(state: Rc<RefCell<State>>, cx: &mut Context<Probe>
     match menu {
         ToolGroup::Calibration => {
             items.push(tool_menu_item(
-                "设定坐标原点".into(),
+                tr("menu.tool.set_origin"),
                 tool == Tool::Origin,
                 1,
                 cx,
@@ -223,7 +236,7 @@ pub(crate) fn tool_menu_popup(state: Rc<RefCell<State>>, cx: &mut Context<Probe>
                 },
             ));
             items.push(tool_menu_item(
-                "原点偏移".into(),
+                tr("menu.tool.origin_offset"),
                 tool == Tool::OriginOffset,
                 2,
                 cx,
@@ -233,7 +246,7 @@ pub(crate) fn tool_menu_popup(state: Rc<RefCell<State>>, cx: &mut Context<Probe>
             ));
             items.push(menu_separator());
             items.push(tool_menu_item(
-                "显示全部定标尺".into(),
+                tr("menu.tool.show_all_sticks"),
                 false,
                 3,
                 cx,
@@ -246,7 +259,7 @@ pub(crate) fn tool_menu_popup(state: Rc<RefCell<State>>, cx: &mut Context<Probe>
         }
         ToolGroup::Measurement => {
             items.push(tool_menu_item(
-                "测量尺".into(),
+                tr("menu.tool.tape"),
                 tool == Tool::Tape,
                 4,
                 cx,
@@ -255,7 +268,7 @@ pub(crate) fn tool_menu_popup(state: Rc<RefCell<State>>, cx: &mut Context<Probe>
                 },
             ));
             items.push(tool_menu_item(
-                "量角器".into(),
+                tr("menu.tool.protractor"),
                 tool == Tool::Protractor,
                 5,
                 cx,
@@ -264,7 +277,7 @@ pub(crate) fn tool_menu_popup(state: Rc<RefCell<State>>, cx: &mut Context<Probe>
                 },
             ));
             items.push(tool_menu_item(
-                "圆拟合".into(),
+                tr("menu.tool.circle"),
                 tool == Tool::Circle,
                 6,
                 cx,
@@ -285,10 +298,13 @@ pub(crate) fn tool_menu_popup(state: Rc<RefCell<State>>, cx: &mut Context<Probe>
                     st.point_detect_method = PointDetectMethod::AutoTracker;
                     st.rigid_roi_mode = false;
                     st.motion_roi_mode = false;
-                    st.status = Some(format!(
-                        "质点检测：{}（左键运行）",
-                        PointDetectMethod::AutoTracker.label()
-                    ));
+                    st.status = Some(
+                        t!(
+                            "menu.status.point_detect",
+                            method = PointDetectMethod::AutoTracker.label()
+                        )
+                        .to_string(),
+                    );
                 },
             ));
             items.push(tool_menu_item(
@@ -301,10 +317,13 @@ pub(crate) fn tool_menu_popup(state: Rc<RefCell<State>>, cx: &mut Context<Probe>
                     st.point_detect_method = PointDetectMethod::AutoDetect;
                     st.rigid_roi_mode = false;
                     st.motion_roi_mode = false;
-                    st.status = Some(format!(
-                        "质点检测：{}（左键运行）",
-                        PointDetectMethod::AutoDetect.label()
-                    ));
+                    st.status = Some(
+                        t!(
+                            "menu.status.point_detect",
+                            method = PointDetectMethod::AutoDetect.label()
+                        )
+                        .to_string(),
+                    );
                 },
             ));
         }
@@ -320,10 +339,13 @@ pub(crate) fn tool_menu_popup(state: Rc<RefCell<State>>, cx: &mut Context<Probe>
                     st.rigid_detect_method = RigidDetectMethod::Aruco;
                     st.rigid_roi_mode = false;
                     st.motion_roi_mode = false;
-                    st.status = Some(format!(
-                        "刚体检测：{}（左键运行）",
-                        RigidDetectMethod::Aruco.label()
-                    ));
+                    st.status = Some(
+                        t!(
+                            "menu.status.rigid_detect",
+                            method = RigidDetectMethod::Aruco.label()
+                        )
+                        .to_string(),
+                    );
                 },
             ));
             items.push(tool_menu_item(
@@ -336,10 +358,13 @@ pub(crate) fn tool_menu_popup(state: Rc<RefCell<State>>, cx: &mut Context<Probe>
                     st.rigid_detect_method = RigidDetectMethod::Markerless;
                     st.rigid_roi_mode = false;
                     st.motion_roi_mode = false;
-                    st.status = Some(format!(
-                        "刚体检测：{}（左键运行）",
-                        RigidDetectMethod::Markerless.label()
-                    ));
+                    st.status = Some(
+                        t!(
+                            "menu.status.rigid_detect",
+                            method = RigidDetectMethod::Markerless.label()
+                        )
+                        .to_string(),
+                    );
                 },
             ));
             items.push(tool_menu_item(
@@ -352,10 +377,13 @@ pub(crate) fn tool_menu_popup(state: Rc<RefCell<State>>, cx: &mut Context<Probe>
                     st.rigid_detect_method = RigidDetectMethod::MotionContour;
                     st.rigid_roi_mode = false;
                     st.motion_roi_mode = false;
-                    st.status = Some(format!(
-                        "刚体检测：{}（左键运行）",
-                        RigidDetectMethod::MotionContour.label()
-                    ));
+                    st.status = Some(
+                        t!(
+                            "menu.status.rigid_detect",
+                            method = RigidDetectMethod::MotionContour.label()
+                        )
+                        .to_string(),
+                    );
                 },
             ));
         }
@@ -372,7 +400,7 @@ pub(crate) fn tool_menu_popup(state: Rc<RefCell<State>>, cx: &mut Context<Probe>
                 (point_tracks, st.active)
             };
             items.push(tool_menu_item(
-                "新建质点".into(),
+                tr("menu.tool.new_point"),
                 false,
                 90,
                 cx,
@@ -385,7 +413,7 @@ pub(crate) fn tool_menu_popup(state: Rc<RefCell<State>>, cx: &mut Context<Probe>
             items.push(menu_separator());
             if point_tracks.is_empty() {
                 items.push(tool_menu_item(
-                    "无质点轨道".into(),
+                    tr("menu.tool.no_point_tracks"),
                     false,
                     99,
                     cx,
@@ -394,7 +422,7 @@ pub(crate) fn tool_menu_popup(state: Rc<RefCell<State>>, cx: &mut Context<Probe>
             } else {
                 for (index, id, name, points) in point_tracks {
                     items.push(tool_menu_item(
-                        format!("{name} · {points} 点"),
+                        t!("menu.track_points", name = name, points = points).to_string(),
                         index == active,
                         100 + index,
                         cx,
@@ -521,19 +549,19 @@ pub(crate) fn menu_popup(state: Rc<RefCell<State>>, cx: &mut Context<Probe>) -> 
     let mut items: Vec<AnyElement> = Vec::new();
     match open {
         MenuId::File => {
-            items.push(menu_item("新建项目", true, cx, |this, cx| {
+            items.push(menu_item(tr("menu.item.new_project"), true, cx, |this, cx| {
                 request_new_project(this.state.clone(), cx);
             }));
-            items.push(menu_item("打开项目…", true, cx, |this, cx| {
+            items.push(menu_item(tr("menu.item.open_project"), true, cx, |this, cx| {
                 request_open_project(this.state.clone(), cx);
             }));
-            items.push(menu_item("保存", has_docs, cx, |this, cx| {
+            items.push(menu_item(tr("menu.item.save"), has_docs, cx, |this, cx| {
                 request_save(this.state.clone(), SaveAction::None, cx);
             }));
-            items.push(menu_item("另存为…", has_docs, cx, |this, cx| {
+            items.push(menu_item(tr("menu.item.save_as"), has_docs, cx, |this, cx| {
                 request_save_as(this.state.clone(), SaveAction::None, cx);
             }));
-            items.push(menu_item("打开文件夹…", true, cx, |this, cx| {
+            items.push(menu_item(tr("menu.item.open_folder"), true, cx, |this, cx| {
                 request_choose_folder(this.state.clone(), cx);
             }));
             if !recent_projects.is_empty() {
@@ -542,8 +570,8 @@ pub(crate) fn menu_popup(state: Rc<RefCell<State>>, cx: &mut Context<Probe>) -> 
                     let label = path
                         .file_name()
                         .and_then(|name| name.to_str())
-                        .unwrap_or("(invalid)")
-                        .to_string();
+                        .map(|name| name.to_string())
+                        .unwrap_or_else(|| tr("app.invalid_name"));
                     let path_for_action = path.clone();
                     items.push(menu_item_dynamic(
                         label,
@@ -563,7 +591,7 @@ pub(crate) fn menu_popup(state: Rc<RefCell<State>>, cx: &mut Context<Probe>) -> 
             if has_docs {
                 items.push(menu_separator());
                 items.push(menu_item(
-                    "关闭当前标签",
+                    tr("menu.item.close_tab"),
                     true,
                     cx,
                     move |this, cx| {
@@ -573,11 +601,11 @@ pub(crate) fn menu_popup(state: Rc<RefCell<State>>, cx: &mut Context<Probe>) -> 
             }
         }
         MenuId::Edit => {
-            items.push(menu_item("撤销  Ctrl+Z", can_undo, cx, |this, _cx| {
+            items.push(menu_item(tr("menu.item.undo"), can_undo, cx, |this, _cx| {
                 this.state.borrow_mut().undo_edit();
             }));
             items.push(menu_item(
-                "重做  Ctrl+Shift+Z",
+                tr("menu.item.redo"),
                 can_redo,
                 cx,
                 |this, _cx| {
@@ -586,21 +614,18 @@ pub(crate) fn menu_popup(state: Rc<RefCell<State>>, cx: &mut Context<Probe>) -> 
             ));
         }
         MenuId::View => {
-            items.push(menu_item("适应窗口  F", has_docs, cx, |this, _cx| {
+            items.push(menu_item(tr("menu.item.fit"), has_docs, cx, |this, _cx| {
                 this.state.borrow_mut().fit();
             }));
             items.push(menu_separator());
             let current_theme = theme_mode();
             for (id, mode, label) in [
-                (40, ThemeMode::Auto, "跟随系统主题"),
-                (41, ThemeMode::Light, "浅色模式"),
-                (42, ThemeMode::Dark, "深色模式"),
+                (40, ThemeMode::Auto, tr("menu.item.theme_auto")),
+                (41, ThemeMode::Light, tr("menu.item.theme_light")),
+                (42, ThemeMode::Dark, tr("menu.item.theme_dark")),
             ] {
                 items.push(menu_item_dynamic(
-                    format!(
-                        "[{}] {label}",
-                        if current_theme == mode { "x" } else { " " }
-                    ),
+                    check(label, current_theme == mode),
                     id,
                     true,
                     cx,
@@ -613,7 +638,7 @@ pub(crate) fn menu_popup(state: Rc<RefCell<State>>, cx: &mut Context<Probe>) -> 
             items.push(menu_separator());
             let axes_visible = state.borrow().axes_visible;
             items.push(menu_item_dynamic(
-                format!("[{}] 显示坐标系", if axes_visible { "x" } else { " " }),
+                check(tr("menu.item.axes"), axes_visible),
                 43,
                 has_docs,
                 cx,
@@ -632,7 +657,7 @@ pub(crate) fn menu_popup(state: Rc<RefCell<State>>, cx: &mut Context<Probe>) -> 
                 )
             };
             items.push(menu_item_dynamic(
-                format!("[{}] 显示轨迹", if trail_visible { "x" } else { " " }),
+                check(tr("menu.item.trail"), trail_visible),
                 46,
                 has_docs,
                 cx,
@@ -642,10 +667,10 @@ pub(crate) fn menu_popup(state: Rc<RefCell<State>>, cx: &mut Context<Probe>) -> 
                 },
             ));
             let trail_label = match trail_length {
-                0 => "全部".to_string(),
-                4 => "短 (4 帧)".to_string(),
-                15 => "长 (15 帧)".to_string(),
-                n => format!("{n} 帧"),
+                0 => tr("menu.trail.all"),
+                4 => tr("menu.trail.short"),
+                15 => tr("menu.trail.long"),
+                n => t!("menu.trail.frames", n = n).to_string(),
             };
             let next_trail = match trail_length {
                 15 => 4,
@@ -653,7 +678,7 @@ pub(crate) fn menu_popup(state: Rc<RefCell<State>>, cx: &mut Context<Probe>) -> 
                 _ => 15,
             };
             items.push(menu_item_dynamic(
-                format!("轨迹长度: {trail_label}"),
+                t!("menu.item.trail_length", label = trail_label).to_string(),
                 47,
                 has_docs,
                 cx,
@@ -662,7 +687,7 @@ pub(crate) fn menu_popup(state: Rc<RefCell<State>>, cx: &mut Context<Probe>) -> 
                 },
             ));
             items.push(menu_item_dynamic(
-                format!("[{}] 显示步号", if labels_visible { "x" } else { " " }),
+                check(tr("menu.item.labels"), labels_visible),
                 48,
                 has_docs,
                 cx,
@@ -672,7 +697,7 @@ pub(crate) fn menu_popup(state: Rc<RefCell<State>>, cx: &mut Context<Probe>) -> 
                 },
             ));
             items.push(menu_item_dynamic(
-                format!("[{}] 显示轨迹线", if trace_visible { "x" } else { " " }),
+                check(tr("menu.item.trace"), trace_visible),
                 49,
                 has_docs,
                 cx,
@@ -687,7 +712,7 @@ pub(crate) fn menu_popup(state: Rc<RefCell<State>>, cx: &mut Context<Probe>) -> 
                 (st.left_open, st.right_open)
             };
             items.push(menu_item_dynamic(
-                format!("[{}] 显示工作区", if left_open { "x" } else { " " }),
+                check(tr("menu.item.workspace"), left_open),
                 44,
                 true,
                 cx,
@@ -696,7 +721,7 @@ pub(crate) fn menu_popup(state: Rc<RefCell<State>>, cx: &mut Context<Probe>) -> 
                 },
             ));
             items.push(menu_item_dynamic(
-                format!("[{}] 显示属性栏", if right_open { "x" } else { " " }),
+                check(tr("menu.item.inspector"), right_open),
                 45,
                 true,
                 cx,
@@ -704,6 +729,20 @@ pub(crate) fn menu_popup(state: Rc<RefCell<State>>, cx: &mut Context<Probe>) -> 
                     this.state.borrow_mut().right_open = !right_open;
                 },
             ));
+            items.push(menu_separator());
+            let current_pref = state.borrow().language_pref();
+            for (index, (value, label)) in crate::i18n::menu_entries().into_iter().enumerate() {
+                items.push(menu_item_dynamic(
+                    check(label, current_pref == value),
+                    60 + index,
+                    true,
+                    cx,
+                    move |this, cx| {
+                        this.state.borrow_mut().apply_language(value);
+                        cx.refresh_windows();
+                    },
+                ));
+            }
         }
         MenuId::Tracks => {
             let (
@@ -745,7 +784,7 @@ pub(crate) fn menu_popup(state: Rc<RefCell<State>>, cx: &mut Context<Probe>) -> 
             #[cfg(not(feature = "vision"))]
             let _ = auto_detect_running;
             items.push(menu_item(
-                "新建质点轨道",
+                tr("menu.item.new_point_track"),
                 has_video && !tracking,
                 cx,
                 |this, _cx| {
@@ -755,12 +794,12 @@ pub(crate) fn menu_popup(state: Rc<RefCell<State>>, cx: &mut Context<Probe>) -> 
                 },
             ));
             for (id, kind, label) in [
-                (30, MeasurementKind::Tape, "新建测量尺"),
-                (31, MeasurementKind::Protractor, "新建量角器"),
-                (32, MeasurementKind::Circle, "新建圆拟合"),
+                (30, MeasurementKind::Tape, tr("menu.item.new_tape")),
+                (31, MeasurementKind::Protractor, tr("menu.item.new_protractor")),
+                (32, MeasurementKind::Circle, tr("menu.item.new_circle")),
             ] {
                 items.push(menu_item_dynamic(
-                    label.into(),
+                    label,
                     id,
                     has_video && !tracking,
                     cx,
@@ -777,7 +816,7 @@ pub(crate) fn menu_popup(state: Rc<RefCell<State>>, cx: &mut Context<Probe>) -> 
                 ));
             }
             items.push(menu_item(
-                "删除当前轨道",
+                tr("menu.item.delete_track"),
                 has_track && !tracking,
                 cx,
                 |this, _cx| {
@@ -785,7 +824,7 @@ pub(crate) fn menu_popup(state: Rc<RefCell<State>>, cx: &mut Context<Probe>) -> 
                 },
             ));
             items.push(menu_item(
-                "清空当前轨道数据",
+                tr("menu.item.clear_track"),
                 has_track && !tracking,
                 cx,
                 |this, _cx| {
@@ -799,7 +838,7 @@ pub(crate) fn menu_popup(state: Rc<RefCell<State>>, cx: &mut Context<Probe>) -> 
             if has_track {
                 items.push(menu_separator());
                 items.push(menu_item_dynamic(
-                    format!("当前轨道: {track_name}"),
+                    t!("menu.item.current_track", name = track_name).to_string(),
                     20,
                     false,
                     cx,
@@ -807,7 +846,7 @@ pub(crate) fn menu_popup(state: Rc<RefCell<State>>, cx: &mut Context<Probe>) -> 
                 ));
             }
             items.push(menu_item_dynamic(
-                format!("[{}] 显示", if visible { "x" } else { " " }),
+                check(tr("menu.item.visible"), visible),
                 21,
                 has_track,
                 cx,
@@ -820,7 +859,7 @@ pub(crate) fn menu_popup(state: Rc<RefCell<State>>, cx: &mut Context<Probe>) -> 
                 },
             ));
             items.push(menu_item_dynamic(
-                format!("[{}] 锁定", if locked { "x" } else { " " }),
+                check(tr("menu.item.locked"), locked),
                 22,
                 has_track,
                 cx,
@@ -833,7 +872,7 @@ pub(crate) fn menu_popup(state: Rc<RefCell<State>>, cx: &mut Context<Probe>) -> 
                 },
             ));
             items.push(menu_item_dynamic(
-                format!("标记形状: {}", footprint.label()),
+                t!("menu.item.footprint", label = footprint.label()).to_string(),
                 23,
                 has_track,
                 cx,
@@ -846,7 +885,7 @@ pub(crate) fn menu_popup(state: Rc<RefCell<State>>, cx: &mut Context<Probe>) -> 
                 },
             ));
             items.push(menu_item_dynamic(
-                format!("步长: {step_size}  (-)"),
+                t!("menu.item.step", n = step_size, sign = "-").to_string(),
                 24,
                 has_track,
                 cx,
@@ -859,7 +898,7 @@ pub(crate) fn menu_popup(state: Rc<RefCell<State>>, cx: &mut Context<Probe>) -> 
                 },
             ));
             items.push(menu_item_dynamic(
-                format!("步长: {step_size}  (+)"),
+                t!("menu.item.step", n = step_size, sign = "+").to_string(),
                 25,
                 has_track,
                 cx,
@@ -872,10 +911,9 @@ pub(crate) fn menu_popup(state: Rc<RefCell<State>>, cx: &mut Context<Probe>) -> 
                 },
             ));
             items.push(menu_item_dynamic(
-                format!(
-                    "[{}] 自动步进（标记后前进 {} 帧）",
-                    if auto_advance { "x" } else { " " },
-                    step_size
+                check(
+                    t!("menu.item.autostep", n = step_size).to_string(),
+                    auto_advance,
                 ),
                 26,
                 has_track,
@@ -889,7 +927,7 @@ pub(crate) fn menu_popup(state: Rc<RefCell<State>>, cx: &mut Context<Probe>) -> 
                 },
             ));
             items.push(menu_item(
-                "删除当前帧标记",
+                tr("menu.item.delete_point"),
                 has_track && !locked && !tracking,
                 cx,
                 move |this, _cx| {
@@ -904,7 +942,7 @@ pub(crate) fn menu_popup(state: Rc<RefCell<State>>, cx: &mut Context<Probe>) -> 
             items.push(menu_separator());
             #[cfg(feature = "vision")]
             items.push(menu_item(
-                "自动检测运动目标",
+                tr("menu.item.autodetect"),
                 has_video && !tracking && !auto_detect_running,
                 cx,
                 |this, cx| {
@@ -913,7 +951,7 @@ pub(crate) fn menu_popup(state: Rc<RefCell<State>>, cx: &mut Context<Probe>) -> 
             ));
             #[cfg(feature = "vision")]
             items.push(menu_item(
-                "ArUco 刚体打标",
+                tr("menu.item.aruco"),
                 has_video && !tracking && !auto_detect_running,
                 cx,
                 |this, cx| {
@@ -922,7 +960,7 @@ pub(crate) fn menu_popup(state: Rc<RefCell<State>>, cx: &mut Context<Probe>) -> 
             ));
             #[cfg(feature = "vision")]
             items.push(menu_item(
-                "无标记刚体（框选）",
+                tr("menu.item.markerless"),
                 has_video && !tracking && !auto_detect_running,
                 cx,
                 |this, _cx| {
@@ -932,12 +970,12 @@ pub(crate) fn menu_popup(state: Rc<RefCell<State>>, cx: &mut Context<Probe>) -> 
                     st.tool = Tool::Move;
                     st.status = st
                         .rigid_roi_mode
-                        .then(|| "在视频上拖拽框选无标记刚体".to_string());
+                        .then(|| tr("menu.item.markerless_hint"));
                 },
             ));
             #[cfg(feature = "vision")]
             items.push(menu_item(
-                "运动轮廓刚体（框选）",
+                tr("menu.item.motion_contour"),
                 has_video && !tracking && !auto_detect_running,
                 cx,
                 |this, _cx| {
@@ -947,15 +985,12 @@ pub(crate) fn menu_popup(state: Rc<RefCell<State>>, cx: &mut Context<Probe>) -> 
                     st.tool = Tool::Move;
                     st.status = st
                         .motion_roi_mode
-                        .then(|| "在视频上拖拽框选纯色/清晰边界刚体".to_string());
+                        .then(|| tr("menu.item.motion_hint"));
                 },
             ));
             #[cfg(feature = "vision")]
             items.push(menu_item_dynamic(
-                format!(
-                    "[{}] 纯运动掩膜（不学习固定形状）",
-                    if motion_pure_mask { "x" } else { " " }
-                ),
+                check(tr("menu.item.pure_mask"), motion_pure_mask),
                 28,
                 has_video && !tracking && !auto_detect_running,
                 cx,
@@ -963,9 +998,9 @@ pub(crate) fn menu_popup(state: Rc<RefCell<State>>, cx: &mut Context<Probe>) -> 
                     let mut st = this.state.borrow_mut();
                     st.motion_pure_mask = !motion_pure_mask;
                     st.status = Some(if st.motion_pure_mask {
-                        "运动轮廓将使用纯运动掩膜".into()
+                        tr("menu.status.motion_mask_on")
                     } else {
-                        "运动轮廓将使用固定形状匹配".into()
+                        tr("menu.status.motion_mask_off")
                     });
                 },
             ));
@@ -978,7 +1013,7 @@ pub(crate) fn menu_popup(state: Rc<RefCell<State>>, cx: &mut Context<Probe>) -> 
                 },
             ));
             items.push(menu_item(
-                "停止自动跟踪",
+                tr("menu.item.stop_tracking"),
                 tracking,
                 cx,
                 |this, _cx| {
@@ -987,7 +1022,7 @@ pub(crate) fn menu_popup(state: Rc<RefCell<State>>, cx: &mut Context<Probe>) -> 
             ));
             if !has_seed && has_track {
                 items.push(menu_item_dynamic(
-                    "（先在当前帧标记起点）".into(),
+                    tr("menu.status.need_seed"),
                     27,
                     false,
                     cx,
@@ -1006,7 +1041,7 @@ pub(crate) fn menu_popup(state: Rc<RefCell<State>>, cx: &mut Context<Probe>) -> 
                 )
             };
             items.push(menu_item(
-                "新建定标尺",
+                tr("menu.item.new_stick"),
                 has_docs && !locked,
                 cx,
                 |this, _cx| {
@@ -1014,7 +1049,7 @@ pub(crate) fn menu_popup(state: Rc<RefCell<State>>, cx: &mut Context<Probe>) -> 
                 },
             ));
             items.push(menu_item_dynamic(
-                format!("[{}] 固定标定（所有帧）", if fixed_cal { "x" } else { " " }),
+                check(tr("menu.item.fixed_cal"), fixed_cal),
                 0,
                 has_docs && !locked,
                 cx,
@@ -1027,7 +1062,7 @@ pub(crate) fn menu_popup(state: Rc<RefCell<State>>, cx: &mut Context<Probe>) -> 
             ));
             items.push(menu_separator());
             items.push(menu_item_dynamic(
-                format!("[{}] 锁定坐标", if locked { "x" } else { " " }),
+                check(tr("menu.item.lock_coords"), locked),
                 1,
                 has_docs,
                 cx,
@@ -1038,7 +1073,7 @@ pub(crate) fn menu_popup(state: Rc<RefCell<State>>, cx: &mut Context<Probe>) -> 
                 },
             ));
             items.push(menu_item_dynamic(
-                format!("[{}] 固定原点", if fixed_origin { "x" } else { " " }),
+                check(tr("menu.item.fixed_origin"), fixed_origin),
                 2,
                 has_docs && !locked,
                 cx,
@@ -1050,7 +1085,7 @@ pub(crate) fn menu_popup(state: Rc<RefCell<State>>, cx: &mut Context<Probe>) -> 
                 },
             ));
             items.push(menu_item_dynamic(
-                format!("[{}] 固定角度", if fixed_angle { "x" } else { " " }),
+                check(tr("menu.item.fixed_angle"), fixed_angle),
                 3,
                 has_docs && !locked,
                 cx,
@@ -1063,7 +1098,7 @@ pub(crate) fn menu_popup(state: Rc<RefCell<State>>, cx: &mut Context<Probe>) -> 
             ));
             items.push(menu_separator());
             items.push(menu_item_dynamic(
-                "对齐到标定尺".into(),
+                tr("menu.item.align_stick"),
                 5,
                 has_docs && !locked,
                 cx,
@@ -1074,7 +1109,7 @@ pub(crate) fn menu_popup(state: Rc<RefCell<State>>, cx: &mut Context<Probe>) -> 
                 },
             ));
             items.push(menu_item_dynamic(
-                "统一使用当前帧坐标".into(),
+                tr("menu.item.unify_frame"),
                 6,
                 has_docs && !locked,
                 cx,
@@ -1086,7 +1121,7 @@ pub(crate) fn menu_popup(state: Rc<RefCell<State>>, cx: &mut Context<Probe>) -> 
                 },
             ));
             items.push(menu_item_dynamic(
-                "重置坐标".into(),
+                tr("menu.item.reset_coords"),
                 7,
                 has_docs && !locked,
                 cx,
@@ -1097,7 +1132,7 @@ pub(crate) fn menu_popup(state: Rc<RefCell<State>>, cx: &mut Context<Probe>) -> 
                 },
             ));
             items.push(menu_item_dynamic(
-                "重置标定".into(),
+                tr("menu.item.reset_cal"),
                 8,
                 has_docs && !locked,
                 cx,
@@ -1108,11 +1143,11 @@ pub(crate) fn menu_popup(state: Rc<RefCell<State>>, cx: &mut Context<Probe>) -> 
             ));
         }
         MenuId::Help => {
-            items.push(menu_item("操作说明", true, cx, |this, _cx| {
+            items.push(menu_item(tr("menu.item.help_guide"), true, cx, |this, _cx| {
                 this.state.borrow_mut().modal = Some(Modal::Operations);
             }));
             items.push(menu_separator());
-            items.push(menu_item("关于 Tracker GPUI", true, cx, |this, _cx| {
+            items.push(menu_item(tr("menu.item.about"), true, cx, |this, _cx| {
                 this.state.borrow_mut().modal = Some(Modal::About);
             }));
         }

@@ -3,6 +3,7 @@ use gpui_component::{TitleBar, TITLE_BAR_HEIGHT};
 use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::*;
 
+use crate::i18n::tr;
 use crate::*;
 
 impl Render for Probe {
@@ -207,7 +208,7 @@ impl Render for Probe {
                         let text = st.table_tsv();
                         if !text.is_empty() {
                             cx.write_to_clipboard(ClipboardItem::new_string(text));
-                            st.status = Some("数据表已复制".into());
+                            st.status = Some(tr("status.table_copied"));
                         }
                     }
                     "f" => st.fit(),
@@ -551,7 +552,7 @@ impl Render for Probe {
                             }
                         } else {
                             this.state.borrow_mut().status =
-                                Some("框选区域太小，请重新框选".into());
+                                Some(tr("status.roi_too_small"));
                             cx.notify();
                         }
                         return;
@@ -715,11 +716,14 @@ impl Render for Probe {
                         .bg(c(0x070b12).alpha(0.82))
                         .text_sm()
                         .text_color(c(0xb9cbe4))
-                        .child(format!(
-                            "正在索引 {}… {}%",
-                            loading.name,
-                            loading.progress.load(Ordering::Relaxed)
-                        ))
+                        .child(
+                            t!(
+                                "status.indexing",
+                                name = loading.name,
+                                pct = loading.progress.load(Ordering::Relaxed)
+                            )
+                            .to_string(),
+                        )
                 } else if let Some(error) = &st.error {
                     div()
                         .absolute()
@@ -786,9 +790,9 @@ impl Render for Probe {
                 rigid_detect_method,
             );
             let autostep_tip = if auto_advance {
-                "自动步进：开 (A)"
+                tr("toolbar.autostep_on")
             } else {
-                "自动步进：关 (A)"
+                tr("toolbar.autostep_off")
             };
             #[cfg(feature = "vision")]
             let point_group = {
@@ -812,7 +816,7 @@ impl Render for Probe {
                                 .map(|track| track.is_point_mass())
                                 .unwrap_or(false)
                             {
-                                st.status = Some("请先新建或选择一个质点轨道".into());
+                                st.status = Some(tr("status.need_point_track"));
                                 return;
                             }
                             drop(st);
@@ -821,7 +825,7 @@ impl Render for Probe {
                         PointDetectMethod::AutoDetect => {
                             let mut st = this.state.borrow_mut();
                             if st.tracking.is_some() {
-                                st.status = Some("请先停止自动跟踪".into());
+                                st.status = Some(tr("status.stop_tracking_first"));
                                 return;
                             }
                             st.rigid_roi_mode = false;
@@ -877,7 +881,7 @@ impl Render for Probe {
                             st.tool = Tool::Move;
                             st.status = st
                                 .rigid_roi_mode
-                                .then(|| "在视频上拖拽框选无标记刚体".to_string());
+                                .then(|| tr("menu.item.markerless_hint"));
                         }
                         RigidDetectMethod::MotionContour => {
                             let mut st = this.state.borrow_mut();
@@ -886,7 +890,7 @@ impl Render for Probe {
                             st.tool = Tool::Move;
                             st.status = st
                                 .motion_roi_mode
-                                .then(|| "在视频上拖拽框选纯色/清晰边界刚体".to_string());
+                                .then(|| tr("menu.item.motion_hint"));
                         }
                     },
                 )
@@ -908,7 +912,7 @@ impl Render for Probe {
                 .child(icon_button(
                     "tool-move",
                     ICON_MOVE,
-                    "移动 / 选择（Esc）",
+                    tr("toolbar.move"),
                     32.0,
                     18.0,
                     tool == Tool::Move,
@@ -921,7 +925,7 @@ impl Render for Probe {
                 .child(menu_icon_button(
                     "tool-tracks",
                     ICON_TRACKS,
-                    "质点轨道（点击切换）",
+                    tr("toolbar.point_track"),
                     ToolGroup::Tracks,
                     has_track,
                     true,
@@ -931,7 +935,7 @@ impl Render for Probe {
                 .child(group_icon_button(
                     "tool-calibration",
                     ICON_RULER,
-                    "新建定标尺（右键：原点工具）",
+                    tr("toolbar.new_stick"),
                     ToolGroup::Calibration,
                     matches!(selection, Selection::Stick(_)) || tool.is_calibration_group(),
                     true,
@@ -943,7 +947,7 @@ impl Render for Probe {
                 .child(group_icon_button(
                     "tool-measurement",
                     measurement_tool.icon(),
-                    "测量（右键选择）",
+                    tr("toolbar.measure"),
                     ToolGroup::Measurement,
                     tool.is_measurement_group(),
                     true,
@@ -976,7 +980,7 @@ impl Render for Probe {
                 .child(icon_button(
                     "tool-axes",
                     ICON_AXES,
-                    "显示坐标系",
+                    tr("toolbar.axes"),
                     32.0,
                     18.0,
                     axes_visible,
@@ -1017,8 +1021,8 @@ impl Render for Probe {
                         .as_ref()
                         .and_then(|path| path.file_name())
                         .and_then(|name| name.to_str())
-                        .unwrap_or("未选择目录")
-                        .to_string();
+                        .map(|name| name.to_string())
+                        .unwrap_or_else(|| tr("toolbar.no_folder"));
                     let path = st
                         .workdir
                         .as_ref()
@@ -1030,7 +1034,7 @@ impl Render for Probe {
                 let refresh = icon_button(
                     "refresh-workdir",
                     ICON_REFRESH,
-                    "刷新工作区",
+                    tr("toolbar.refresh"),
                     24.0,
                     14.0,
                     false,
@@ -1051,9 +1055,9 @@ impl Render for Probe {
                         .text_xs()
                         .text_color(c(0x5f6f88))
                         .child(if has_workdir {
-                            "没有视频文件"
+                            tr("toolbar.no_videos")
                         } else {
-                            ""
+                            String::new()
                         })
                         .into_any_element()
                 } else {
@@ -1099,7 +1103,7 @@ impl Render for Probe {
                             .child(icon_button(
                                 "collapse-left",
                                 ICON_BACK1,
-                                "收起工作区",
+                                tr("toolbar.collapse_workspace"),
                                 20.0,
                                 12.0,
                                 false,
@@ -1168,7 +1172,7 @@ impl Render for Probe {
                             )
                             .child(div().text_xs().text_color(c(0x5f6f88)).child(
                                 if t.is_rigid_body() {
-                                    "刚体".to_string()
+                                    tr("track.kind.rigid")
                                 } else if t.is_point_mass() {
                                     format!("{}·{}", t.footprint.label(), t.step_size)
                                 } else {
@@ -1328,12 +1332,13 @@ impl Render for Probe {
                     .as_ref()
                     .map(|run| {
                         (
-                            format!(
-                                "自动跟踪中 · 第 {} 帧 · {} 点 · 置信度 {}",
-                                run.last_frame,
-                                run.points,
-                                format_confidence(run.last_confidence)
-                            ),
+                            t!(
+                                "status.tracking",
+                                frame = run.last_frame,
+                                points = run.points,
+                                confidence = format_confidence(run.last_confidence)
+                            )
+                            .to_string(),
                             true,
                         )
                     })
@@ -1342,11 +1347,11 @@ impl Render for Probe {
                 let mut object_rows: Vec<AnyElement> = Vec::new();
                 match st.selection {
                     Selection::Axes => {
-                        object_rows.push(kv("对象", "坐标轴".to_string()).into_any_element());
+                        object_rows.push(kv(tr("object.object"), tr("object.axes")).into_any_element());
                         object_rows.push(editable_value(
                             state.clone(),
                             cx,
-                            "原点 x",
+                            tr("object.origin_x"),
                             InlineTarget::OriginX,
                             format!("{:.2}", origin[0]),
                             " px".to_string(),
@@ -1355,7 +1360,7 @@ impl Render for Probe {
                         object_rows.push(editable_value(
                             state.clone(),
                             cx,
-                            "原点 y",
+                            tr("object.origin_y"),
                             InlineTarget::OriginY,
                             format!("{:.2}", origin[1]),
                             " px".to_string(),
@@ -1364,19 +1369,19 @@ impl Render for Probe {
                         object_rows.push(editable_value(
                             state.clone(),
                             cx,
-                            "角度 (°)",
+                            tr("object.angle"),
                             InlineTarget::Angle,
                             format!("{angle:.2}"),
                             " °".to_string(),
                             232,
                         ));
                         object_rows.push(
-                            kv("比例", format!("{:.2} px/{}", st.ppm(), unit)).into_any_element(),
+                            kv(tr("object.scale"), format!("{:.2} px/{}", st.ppm(), unit)).into_any_element(),
                         );
                         let axes_visible = st.axes_visible;
                         object_rows.push(check_item(
                             200,
-                            "显示",
+                            tr("object.visible"),
                             axes_visible,
                             true,
                             cx,
@@ -1388,7 +1393,7 @@ impl Render for Probe {
                         let locked = st.coords.locked;
                         object_rows.push(check_item(
                             201,
-                            "锁定",
+                            tr("object.locked"),
                             locked,
                             true,
                             cx,
@@ -1401,7 +1406,7 @@ impl Render for Probe {
                         let fixed_origin = st.coords.fixed_origin;
                         object_rows.push(check_item(
                             202,
-                            "固定原点（所有帧）",
+                            tr("object.fixed_origin"),
                             fixed_origin,
                             !locked,
                             cx,
@@ -1415,7 +1420,7 @@ impl Render for Probe {
                         let fixed_angle = st.coords.fixed_angle;
                         object_rows.push(check_item(
                             203,
-                            "固定角度（所有帧）",
+                            tr("object.fixed_angle"),
                             fixed_angle,
                             !locked,
                             cx,
@@ -1431,12 +1436,12 @@ impl Render for Probe {
                         if let Some((_, _, length)) = st.calibration.stick(st.frame, index) {
                             let visible = st.calibration.stick_visible(index);
                             object_rows.push(
-                                kv("对象", format!("定标尺 {}", index + 1)).into_any_element(),
+                                kv(tr("object.object"), t!("object.stick", n = index + 1).to_string()).into_any_element(),
                             );
                             object_rows.push(editable_value(
                                 state.clone(),
                                 cx,
-                                "长度",
+                                tr("object.length"),
                                 InlineTarget::StickLength(index),
                                 format!("{:.*}", decimals, length),
                                 format!(" {}", unit),
@@ -1444,7 +1449,7 @@ impl Render for Probe {
                             ));
                             object_rows.push(check_item(
                                 211,
-                                "显示",
+                                tr("object.visible"),
                                 visible,
                                 true,
                                 cx,
@@ -1456,7 +1461,7 @@ impl Render for Probe {
                             ));
                             object_rows.push(plot_chip(
                                 212,
-                                "单位/小数位…".into(),
+                                tr("object.unit_decimals"),
                                 false,
                                 cx,
                                 move |this, _cx| {
@@ -1473,12 +1478,12 @@ impl Render for Probe {
                             let locked = track.locked;
                             let is_point_mass = track.is_point_mass();
                             object_rows.push(
-                                kv("对象", format!("{} · {}", track.name, track.kind_label()))
+                                kv(tr("object.object"), format!("{} · {}", track.name, track.kind_label()))
                                     .into_any_element(),
                             );
                             object_rows.push(check_item(
                                 220,
-                                "显示",
+                                tr("object.visible"),
                                 visible,
                                 true,
                                 cx,
@@ -1494,7 +1499,7 @@ impl Render for Probe {
                             ));
                             object_rows.push(check_item(
                                 221,
-                                "锁定",
+                                tr("object.locked"),
                                 locked,
                                 true,
                                 cx,
@@ -1512,37 +1517,46 @@ impl Render for Probe {
                                 if let Some(rigid) = &track.rigid {
                                     let markerless = rigid.markers.is_empty();
                                     let source = match rigid.dictionary.as_str() {
-                                        "ORB" => "无标记（ORB）".to_string(),
-                                        "MOTION" => format!(
-                                            "运动轮廓 · {}",
-                                            rigid.mask_mode.label()
-                                        ),
-                                        _ => format!(
-                                            "{} · {} 个标记",
-                                            rigid.dictionary,
-                                            rigid.markers.len()
-                                        ),
+                                        "ORB" => tr("object.markerless_orb"),
+                                        "MOTION" => t!(
+                                            "object.motion_contour",
+                                            n = rigid.mask_mode.label()
+                                        )
+                                        .to_string(),
+                                        _ => t!(
+                                            "object.markers",
+                                            kind = rigid.dictionary,
+                                            n = rigid.markers.len()
+                                        )
+                                        .to_string(),
                                     };
                                     object_rows.push(
-                                        kv(if markerless { "跟踪" } else { "ArUco" }, source)
-                                            .into_any_element(),
+                                        kv(
+                                            if markerless {
+                                                tr("object.tracking")
+                                            } else {
+                                                "ArUco".to_string()
+                                            },
+                                            source,
+                                        )
+                                        .into_any_element(),
                                     );
                                     if let Some(step) = track.rigid_step(st.frame) {
                                         object_rows.push(
                                             kv(
-                                                "刚体角度",
+                                                tr("object.rigid_angle"),
                                                 format!("{:.2}°", step.angle.to_degrees()),
                                             )
                                             .into_any_element(),
                                         );
                                         object_rows.push(
-                                            kv("特征尺寸", format!("{:.1} px", step.scale))
+                                            kv(tr("object.feature_size"), format!("{:.1} px", step.scale))
                                                 .into_any_element(),
                                         );
                                         let quality_label = match rigid.dictionary.as_str() {
-                                            "ORB" => "内点",
-                                            "MOTION" => "匹配度",
-                                            _ => "可见标记",
+                                            "ORB" => tr("object.inliers"),
+                                            "MOTION" => tr("object.match_degree"),
+                                            _ => tr("object.visible_markers"),
                                         };
                                         object_rows.push(
                                             kv(quality_label, format!("{}", step.marker_count))
@@ -1551,7 +1565,7 @@ impl Render for Probe {
                                     }
                                     if !rigid.contour.is_empty() {
                                         object_rows.push(
-                                            kv("轮廓点", format!("{}", rigid.contour.len()))
+                                            kv(tr("object.outline_points"), format!("{}", rigid.contour.len()))
                                                 .into_any_element(),
                                         );
                                     }
@@ -1561,7 +1575,7 @@ impl Render for Probe {
                                 {
                                     object_rows.push(
                                         kv(
-                                            "速度",
+                                            tr("object.velocity"),
                                             format!(
                                                 "({:.2}, {:.2}) {}/s",
                                                 velocity.0, velocity.1, unit
@@ -1575,7 +1589,7 @@ impl Render for Probe {
                                 {
                                     object_rows.push(
                                         kv(
-                                            "加速度",
+                                            tr("object.acceleration"),
                                             format!(
                                                 "({:.2}, {:.2}) {}/s²",
                                                 acceleration.0, acceleration.1, unit
@@ -1630,11 +1644,11 @@ impl Render for Probe {
                                     .text_xs()
                                     .font_weight(FontWeight::SEMIBOLD)
                                     .text_color(c(0xb9cbe4))
-                                    .child("检查器"),
+                                    .child(tr("inspector.title")),
                             )
                             .child(plot_chip(
                                 500,
-                                "对象属性".into(),
+                                tr("inspector.object_properties"),
                                 right_view == RightView::Inspector,
                                 cx,
                                 |this, _cx| {
@@ -1643,7 +1657,7 @@ impl Render for Probe {
                             ))
                             .child(plot_chip(
                                 501,
-                                "绘图+数据".into(),
+                                tr("inspector.tab_plot"),
                                 right_view == RightView::Plot,
                                 cx,
                                 |this, _cx| {
@@ -1653,7 +1667,7 @@ impl Render for Probe {
                             .child(icon_button(
                                 "collapse-right",
                                 ICON_FWD1,
-                                "收起属性栏",
+                                tr("inspector.collapse"),
                                 20.0,
                                 12.0,
                                 false,
@@ -1666,17 +1680,17 @@ impl Render for Probe {
                     )
                     .when(right_view == RightView::Inspector, |this| {
                         this.child(section_header(
-                            "属性",
+                            tr("inspector.properties"),
                             SideSection::Properties,
                             state.clone(),
                             cx,
                         ))
                         .when(!collapsed_properties, |this| {
-                            this.child(kv("文件", st.title.clone()))
-                                .child(kv("尺寸", size))
-                                .child(kv("帧", format!("{} / {:.1}fps", st.frame_count, fps)))
+                            this.child(kv(tr("inspector.file"), st.title.clone()))
+                                .child(kv(tr("inspector.size"), size))
+                                .child(kv(tr("inspector.frame"), format!("{} / {:.1}fps", st.frame_count, fps)))
                                 .child(kv(
-                                    "时间",
+                                    tr("inspector.time"),
                                     format!(
                                         "{} / {}",
                                         format_time(st.current_time()),
@@ -1685,21 +1699,21 @@ impl Render for Probe {
                                 ))
                         })
                         .child(section_header(
-                            "轨道",
+                            tr("inspector.tracks"),
                             SideSection::Tracks,
                             state.clone(),
                             cx,
                         ))
                         .when(!collapsed_tracks, |this| {
                             this.child(if st.tracks.is_empty() {
-                                div().text_xs().text_color(c(0x5f6f88)).child("无轨道")
+                                div().text_xs().text_color(c(0x5f6f88)).child(tr("inspector.no_tracks"))
                             } else {
                                 track_list
                             })
                         })
                         .when(st.selection != Selection::None, |this| {
                             this.child(section_header(
-                                "对象属性",
+                                tr("inspector.object_properties"),
                                 SideSection::Object,
                                 state.clone(),
                                 cx,
@@ -1709,14 +1723,14 @@ impl Render for Probe {
                     })
                     .when(right_view == RightView::Plot, |this| {
                         this.when(has_plot, |this| {
-                            this.child(section_header("绘图", SideSection::Plot, state.clone(), cx))
+                            this.child(section_header(tr("inspector.plot"), SideSection::Plot, state.clone(), cx))
                                 .when(!collapsed_plot, |this| {
                                     this.child(plot_sidebar(state.clone(), cx))
                                 })
                         })
                         .when(show_data, |this| {
                             this.child(section_header(
-                                "数据表",
+                                tr("inspector.data_table"),
                                 SideSection::Data,
                                 state.clone(),
                                 cx,
@@ -1724,7 +1738,7 @@ impl Render for Probe {
                             .when(!collapsed_data, |this| {
                                 let mut columns_row =
                                     div().flex().items_center().gap_2().child(
-                                        div().text_xs().text_color(c(0x7d8ca6)).child("列:"),
+                                        div().text_xs().text_color(c(0x7d8ca6)).child(tr("inspector.columns")),
                                     );
                                 for (index, label) in
                                     ["t", "x", "y", "vx", "vy"].into_iter().enumerate()
@@ -1749,14 +1763,17 @@ impl Render for Probe {
                                             .items_center()
                                             .gap_2()
                                             .child(div().text_xs().text_color(c(0x5f6f88)).child(
-                                                format!(
-                                                    "共 {row_count} 行 · 已选 {selected_count} 行"
-                                                ),
+                                                t!(
+                                                    "inspector.rows",
+                                                    rows = row_count,
+                                                    selected = selected_count
+                                                )
+                                                .to_string(),
                                             ))
                                             .child(div().flex_1())
                                             .child(plot_chip(
                                                 610,
-                                                "全选".into(),
+                                                tr("inspector.select_all"),
                                                 false,
                                                 cx,
                                                 |this, _cx| {
@@ -1776,7 +1793,7 @@ impl Render for Probe {
                                             ))
                                             .child(plot_chip(
                                                 611,
-                                                "清除".into(),
+                                                tr("inspector.clear"),
                                                 false,
                                                 cx,
                                                 |this, _cx| {
@@ -1785,7 +1802,7 @@ impl Render for Probe {
                                             ))
                                             .child(plot_chip(
                                                 612,
-                                                "复制".into(),
+                                                tr("inspector.copy"),
                                                 false,
                                                 cx,
                                                 |this, cx| {
@@ -1795,7 +1812,7 @@ impl Render for Probe {
                                                             ClipboardItem::new_string(text),
                                                         );
                                                         this.state.borrow_mut().status =
-                                                            Some("数据表已复制".into());
+                                                            Some(tr("status.table_copied"));
                                                     }
                                                 },
                                             )),
@@ -1804,13 +1821,13 @@ impl Render for Probe {
                                         div()
                                             .text_xs()
                                             .text_color(c(0x5f6f88))
-                                            .child("点击行选择；复制选中行，未选择时复制全部"),
+                                            .child(tr("inspector.table_hint")),
                                     )
                                     .child(if empty {
                                         div()
                                             .text_xs()
                                             .text_color(c(0x5f6f88))
-                                            .child("当前轨道没有数据点")
+                                            .child(tr("inspector.no_points"))
                                     } else {
                                         rows
                                     })
@@ -1821,7 +1838,7 @@ impl Render for Probe {
                                 div()
                                     .text_xs()
                                     .text_color(c(0x5f6f88))
-                                    .child("绘图与数据表仅用于质点轨道"),
+                                    .child(tr("inspector.plot_only_point")),
                             )
                         })
                     })
@@ -1865,7 +1882,7 @@ impl Render for Probe {
                 .flex_col()
                 .items_center()
                 .justify_center()
-                .child(div().text_sm().text_color(c(0x5f6f88)).child("未打开视频"))
+                .child(div().text_sm().text_color(c(0x5f6f88)).child(tr("inspector.no_video")))
         };
 
         // ---- bottom ----
@@ -1912,12 +1929,13 @@ impl Render for Probe {
                     st.tracking
                         .as_ref()
                         .map(|run| {
-                            format!(
-                                "自动跟踪中 · 第 {} 帧 · {} 点 · 置信度 {}",
-                                run.last_frame,
-                                run.points,
-                                format_confidence(run.last_confidence)
+                            t!(
+                                "status.tracking",
+                                frame = run.last_frame,
+                                points = run.points,
+                                confidence = format_confidence(run.last_confidence)
                             )
+                            .to_string()
                         })
                         .or_else(|| st.status.clone()),
                     |this, status| {

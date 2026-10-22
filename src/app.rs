@@ -5,6 +5,8 @@ use std::rc::Rc;
 use gpui_kit::*;
 
 use crate::video::{self, VideoStream};
+use crate::i18n::tr;
+use rust_i18n::t;
 use crate::*;
 
 impl Probe {
@@ -58,7 +60,7 @@ impl Probe {
                         markers,
                         Vec::new(),
                         &steps,
-                        "刚体检测",
+                        &tr("track_name.rigid_detect"),
                     );
                     eprintln!(
                         "[script] rigid points={count} markers={} detections={} dict={}",
@@ -139,7 +141,7 @@ impl Probe {
                         Vec::new(),
                         Vec::new(),
                         &steps,
-                        "无标记刚体",
+                        &tr("track_name.markerless"),
                     );
                     eprintln!(
                         "[script] orb points={count} tracked={} roi={roi:?}",
@@ -207,7 +209,7 @@ impl Probe {
                         Vec::new(),
                         result.contour.clone(),
                         &steps,
-                        "运动轮廓",
+                        &tr("track_name.motion_contour"),
                         result.mask_mode,
                         &result.step_contours,
                     );
@@ -263,7 +265,7 @@ impl Probe {
                         .iter()
                         .map(|point| (point.frame, point.x, point.y))
                         .collect();
-                    let count = st.add_auto_points(&points, "自动检测");
+                    let count = st.add_auto_points(&points, &tr("track_name.auto_detect"));
                     eprintln!(
                         "[script] autodetect points={count} candidates={} score={:.1} path={:.1} bright={:.1} preview={:?}",
                         result.candidates,
@@ -1063,7 +1065,7 @@ impl Probe {
                 self.tracker_window = Some(handle);
             }
             Err(err) => {
-                self.state.borrow_mut().status = Some(format!("打开 AutoTracker 窗口失败: {err}"));
+                self.state.borrow_mut().status = Some(t!("msg.tracker_window_failed", err = err).to_string());
             }
         }
         cx.notify();
@@ -1077,7 +1079,7 @@ impl Probe {
                 return;
             }
             let Some(source) = st.video.as_ref().map(|video| video.frame_source()) else {
-                st.status = Some("请先打开视频".into());
+                st.status = Some(tr("msg.open_video_first"));
                 drop(st);
                 cx.notify();
                 return;
@@ -1086,7 +1088,7 @@ impl Probe {
             st.auto_detect_running = true;
             st.rigid_roi_mode = false;
             st.motion_roi_mode = false;
-            st.status = Some("自动检测运动目标…".into());
+            st.status = Some(tr("msg.auto_detect.running"));
             (source, doc_id)
         };
         cx.notify();
@@ -1100,7 +1102,7 @@ impl Probe {
                 let mut st = state.borrow_mut();
                 st.auto_detect_running = false;
                 if st.docs[st.active_doc].id != doc_id {
-                    st.status = Some("自动检测完成，但已切换视频，结果已丢弃".into());
+                    st.status = Some(tr("msg.auto_detect.discarded"));
                     cx.notify();
                     return;
                 }
@@ -1111,14 +1113,18 @@ impl Probe {
                             .iter()
                             .map(|point| (point.frame, point.x, point.y))
                             .collect();
-                        let count = st.add_auto_points(&points, "自动检测");
-                        st.status = Some(format!(
-                            "自动检测完成：{count} 个点（{} 条候选）",
-                            result.candidates
-                        ));
+                        let count = st.add_auto_points(&points, &tr("track_name.auto_detect"));
+                        st.status = Some(
+                            t!(
+                                "msg.auto_detect.done",
+                                count = count,
+                                candidates = result.candidates
+                            )
+                            .to_string(),
+                        );
                     }
                     Err(err) => {
-                        st.status = Some(format!("自动检测失败：{err}"));
+                        st.status = Some(t!("msg.auto_detect.failed", err = err).to_string());
                     }
                 }
                 cx.notify();
@@ -1135,7 +1141,7 @@ impl Probe {
                 return;
             }
             let Some(source) = st.video.as_ref().map(|video| video.frame_source()) else {
-                st.status = Some("请先打开视频".into());
+                st.status = Some(tr("msg.open_video_first"));
                 drop(st);
                 cx.notify();
                 return;
@@ -1144,7 +1150,7 @@ impl Probe {
             st.auto_detect_running = true;
             st.rigid_roi_mode = false;
             st.motion_roi_mode = false;
-            st.status = Some("ArUco 刚体打标…".into());
+            st.status = Some(tr("msg.aruco.running"));
             (source, doc_id)
         };
         cx.notify();
@@ -1158,7 +1164,7 @@ impl Probe {
                 let mut st = state.borrow_mut();
                 st.auto_detect_running = false;
                 if st.docs[st.active_doc].id != doc_id {
-                    st.status = Some("刚体打标完成，但已切换视频，结果已丢弃".into());
+                    st.status = Some(tr("msg.aruco.discarded"));
                     cx.notify();
                     return;
                 }
@@ -1191,16 +1197,20 @@ impl Probe {
                             markers,
                             Vec::new(),
                             &steps,
-                            "刚体检测",
+                            &tr("track_name.rigid_detect"),
                         );
-                        st.status = Some(format!(
-                            "刚体打标完成：{count} 个点（{} 个标记，{}）",
-                            result.markers.len(),
-                            result.dictionary
-                        ));
+                        st.status = Some(
+                            t!(
+                                "msg.aruco.done",
+                                count = count,
+                                markers = result.markers.len(),
+                                dict = result.dictionary
+                            )
+                            .to_string(),
+                        );
                     }
                     Err(err) => {
-                        st.status = Some(format!("刚体打标失败：{err}"));
+                        st.status = Some(t!("msg.aruco.failed", err = err).to_string());
                     }
                 }
                 cx.notify();
@@ -1222,7 +1232,7 @@ impl Probe {
                 return;
             }
             let Some(source) = st.video.as_ref().map(|video| video.frame_source()) else {
-                st.status = Some("请先打开视频".into());
+                st.status = Some(tr("msg.open_video_first"));
                 drop(st);
                 cx.notify();
                 return;
@@ -1231,7 +1241,7 @@ impl Probe {
             st.rigid_roi_mode = false;
             st.motion_roi_mode = false;
             st.auto_detect_running = true;
-            st.status = Some("ORB 刚体跟踪…".into());
+            st.status = Some(tr("msg.orb.running"));
             (source, doc_id)
         };
         cx.notify();
@@ -1245,7 +1255,7 @@ impl Probe {
                 let mut st = state.borrow_mut();
                 st.auto_detect_running = false;
                 if st.docs[st.active_doc].id != doc_id {
-                    st.status = Some("ORB 跟踪完成，但已切换视频，结果已丢弃".into());
+                    st.status = Some(tr("msg.orb.discarded"));
                     cx.notify();
                     return;
                 }
@@ -1270,15 +1280,19 @@ impl Probe {
                             Vec::new(),
                             Vec::new(),
                             &steps,
-                            "无标记刚体",
+                            &tr("track_name.markerless"),
                         );
-                        st.status = Some(format!(
-                            "ORB 刚体跟踪完成：{count} 个点（{} 帧有位姿）",
-                            result.detections
-                        ));
+                        st.status = Some(
+                            t!(
+                                "msg.orb.done",
+                                count = count,
+                                frames = result.detections
+                            )
+                            .to_string(),
+                        );
                     }
                     Err(err) => {
-                        st.status = Some(format!("ORB 刚体跟踪失败：{err}"));
+                        st.status = Some(t!("msg.orb.failed", err = err).to_string());
                     }
                 }
                 cx.notify();
@@ -1300,7 +1314,7 @@ impl Probe {
                 return;
             }
             let Some(source) = st.video.as_ref().map(|video| video.frame_source()) else {
-                st.status = Some("请先打开视频".into());
+                st.status = Some(tr("msg.open_video_first"));
                 drop(st);
                 cx.notify();
                 return;
@@ -1311,9 +1325,9 @@ impl Probe {
             st.motion_roi_mode = false;
             st.auto_detect_running = true;
             st.status = Some(if pure_mask {
-                "纯运动掩膜跟踪…".into()
+                tr("msg.motion.running_pure")
             } else {
-                "固定形状运动轮廓跟踪…".into()
+                tr("msg.motion.running_fixed")
             });
             (source, doc_id, pure_mask)
         };
@@ -1339,7 +1353,7 @@ impl Probe {
                 let mut st = state.borrow_mut();
                 st.auto_detect_running = false;
                 if st.docs[st.active_doc].id != doc_id {
-                    st.status = Some("轮廓跟踪完成，但已切换视频，结果已丢弃".into());
+                    st.status = Some(tr("msg.motion.discarded"));
                     cx.notify();
                     return;
                 }
@@ -1360,26 +1374,31 @@ impl Probe {
                             })
                             .collect();
                         let label = if result.mask_mode == RigidMaskMode::PureMotion {
-                            "纯运动掩膜"
+                            tr("track_name.motion_pure")
                         } else {
-                            "固定形状轮廓"
+                            tr("track_name.motion_fixed")
                         };
                         let count = st.add_rigid_body_with(
                             "MOTION".into(),
                             Vec::new(),
                             result.contour.clone(),
                             &steps,
-                            label,
+                            &label,
                             result.mask_mode,
                             &result.step_contours,
                         );
-                        st.status = Some(format!(
-                            "{label}跟踪完成：{count} 个点（{} 帧有位姿）",
-                            result.detections
-                        ));
+                        st.status = Some(
+                            t!(
+                                "msg.motion.done",
+                                label = label,
+                                count = count,
+                                frames = result.detections
+                            )
+                            .to_string(),
+                        );
                     }
                     Err(err) => {
-                        st.status = Some(format!("运动轮廓跟踪失败：{err}"));
+                        st.status = Some(t!("msg.motion.failed", err = err).to_string());
                     }
                 }
                 cx.notify();
@@ -1537,7 +1556,7 @@ pub(crate) fn request_open_project(state: Rc<RefCell<State>>, cx: &mut Context<P
         files: true,
         directories: false,
         multiple: false,
-        prompt: Some("打开 Tracker GPUI 项目".into()),
+        prompt: Some(tr("dialog.open_project_title").into()),
     });
     cx.spawn(async move |this, cx| {
         if let Ok(Ok(Some(paths))) = receiver.await {
@@ -1556,7 +1575,7 @@ pub(crate) fn request_choose_folder(state: Rc<RefCell<State>>, cx: &mut Context<
         files: false,
         directories: true,
         multiple: false,
-        prompt: Some("选择视频目录".into()),
+        prompt: Some(tr("dialog.choose_folder_title").into()),
     });
     cx.spawn(async move |this, cx| {
         if let Ok(Ok(Some(paths))) = receiver.await {

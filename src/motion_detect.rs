@@ -1,6 +1,8 @@
 //! Classical moving-object detection: background subtraction plus frame
 //! differencing, contour filtering, and nearest-neighbour track linking.
 
+use crate::i18n::tr;
+use crate::i18n::cv;
 use std::path::{Path, PathBuf};
 
 use opencv::core::{self, Mat, Point, Scalar, Size, Vector};
@@ -64,14 +66,14 @@ pub(crate) fn detect_motion(
 ) -> Result<MotionResult, String> {
     let meta = source.meta().clone();
     if meta.frames == 0 {
-        return Err("视频没有可用帧".into());
+        return Err(tr("msg.no_frames"));
     }
     let mut reader = source.reader()?;
     let scale = (960.0 / meta.width as f64).min(1.0);
     let proc_w = ((meta.width as f64 * scale).round() as i32).max(1);
     let proc_h = ((meta.height as f64 * scale).round() as i32).max(1);
     let mut subtractor = video::create_background_subtractor_mog2(30, 16.0, true)
-        .map_err(|err| format!("创建背景模型失败: {err}"))?;
+        .map_err(|err| cv("create background model", err))?;
     let mut previous: Option<Mat> = None;
     let mut candidates: Vec<Candidate> = Vec::new();
     let mut next_id = 1usize;
@@ -91,26 +93,26 @@ pub(crate) fn detect_motion(
                 0.0,
                 imgproc::INTER_AREA,
             )
-            .map_err(|err| format!("缩放帧失败: {err}"))?;
+            .map_err(|err| cv("scale frame", err))?;
             gray = small;
         }
 
         let mut mask = Mat::default();
         BackgroundSubtractorTrait::apply(&mut subtractor, &gray, &mut mask, 0.05)
-            .map_err(|err| format!("背景差分失败: {err}"))?;
+            .map_err(|err| cv("background subtraction", err))?;
         let mut binary = Mat::default();
         imgproc::threshold(&mask, &mut binary, 200.0, 255.0, imgproc::THRESH_BINARY)
-            .map_err(|err| format!("阈值化失败: {err}"))?;
+            .map_err(|err| cv("threshold", err))?;
 
         if let Some(previous) = previous.as_ref() {
             let mut diff = Mat::default();
-            core::absdiff(&gray, previous, &mut diff).map_err(|err| format!("帧差失败: {err}"))?;
+            core::absdiff(&gray, previous, &mut diff).map_err(|err| cv("frame difference", err))?;
             let mut diff_mask = Mat::default();
             imgproc::threshold(&diff, &mut diff_mask, 18.0, 255.0, imgproc::THRESH_BINARY)
-                .map_err(|err| format!("帧差阈值化失败: {err}"))?;
+                .map_err(|err| cv("frame-diff threshold", err))?;
             let mut combined = Mat::default();
             core::bitwise_or(&binary, &diff_mask, &mut combined, &core::no_array())
-                .map_err(|err| format!("合并掩膜失败: {err}"))?;
+                .map_err(|err| cv("merge masks", err))?;
             binary = combined;
         }
         previous = Some(gray.clone());
@@ -121,7 +123,7 @@ pub(crate) fn detect_motion(
             Size::new(5, 5),
             Point::new(-1, -1),
         )
-        .map_err(|err| format!("形态学核失败: {err}"))?;
+        .map_err(|err| cv("morphology kernel", err))?;
         imgproc::morphology_ex(
             &binary,
             &mut cleaned,
@@ -132,13 +134,13 @@ pub(crate) fn detect_motion(
             core::BORDER_CONSTANT,
             Scalar::all(0.0),
         )
-        .map_err(|err| format!("闭运算失败: {err}"))?;
+        .map_err(|err| cv("close", err))?;
         let open = imgproc::get_structuring_element(
             imgproc::MORPH_ELLIPSE,
             Size::new(3, 3),
             Point::new(-1, -1),
         )
-        .map_err(|err| format!("形态学核失败: {err}"))?;
+        .map_err(|err| cv("morphology kernel", err))?;
         let mut filtered = Mat::default();
         imgproc::morphology_ex(
             &cleaned,
@@ -150,7 +152,7 @@ pub(crate) fn detect_motion(
             core::BORDER_CONSTANT,
             Scalar::all(0.0),
         )
-        .map_err(|err| format!("开运算失败: {err}"))?;
+        .map_err(|err| cv("open", err))?;
 
         let mut contours = Vector::<Mat>::new();
         imgproc::find_contours(
@@ -160,18 +162,18 @@ pub(crate) fn detect_motion(
             imgproc::CHAIN_APPROX_SIMPLE,
             Point::new(0, 0),
         )
-        .map_err(|err| format!("查找轮廓失败: {err}"))?;
+        .map_err(|err| cv("find contours", err))?;
 
         let frame_area = (proc_w * proc_h) as f64;
         let mut detections = Vec::new();
         for contour in contours.iter() {
             let area = imgproc::contour_area(&contour, false)
-                .map_err(|err| format!("轮廓面积失败: {err}"))?;
+                .map_err(|err| cv("contour area", err))?;
             if area < 6.0 || area > frame_area * 0.08 {
                 continue;
             }
             let rect =
-                imgproc::bounding_rect(&contour).map_err(|err| format!("轮廓包围盒失败: {err}"))?;
+                imgproc::bounding_rect(&contour).map_err(|err| cv("contour bounding rect", err))?;
             if rect.width < 2 || rect.height < 2 {
                 continue;
             }
@@ -184,7 +186,7 @@ pub(crate) fn detect_motion(
                 continue;
             }
             let moments =
-                imgproc::moments(&contour, false).map_err(|err| format!("轮廓矩失败: {err}"))?;
+                imgproc::moments(&contour, false).map_err(|err| cv("contour moments", err))?;
             let (cx, cy) = if moments.m00 > 1e-6 {
                 (moments.m10 / moments.m00, moments.m01 / moments.m00)
             } else {
@@ -307,7 +309,7 @@ pub(crate) fn detect_motion(
     let best = scored
         .into_iter()
         .next()
-        .ok_or_else(|| "未检测到稳定的运动目标".to_string())?;
+        .ok_or_else(|| tr("msg.no_stable_target"))?;
 
     let preview = if let Some(path) = preview_path {
         save_preview(&mut reader, &best.points, path)?;
@@ -373,24 +375,24 @@ fn score_candidate(candidate: Candidate, meta: &VideoMeta) -> Scored {
 }
 
 fn gray_from_frame(data: &FrameData) -> Result<Mat, String> {
-    let bgra = Mat::from_slice(&data.bgra).map_err(|err| format!("BGRA Mat 失败: {err}"))?;
+    let bgra = Mat::from_slice(&data.bgra).map_err(|err| cv("BGRA Mat", err))?;
     let bgra = bgra
         .reshape(4, data.height as i32)
-        .map_err(|err| format!("BGRA reshape 失败: {err}"))?;
+        .map_err(|err| cv("BGRA reshape", err))?;
     let mut gray = Mat::default();
     imgproc::cvt_color_def(&bgra, &mut gray, imgproc::COLOR_BGRA2GRAY)
-        .map_err(|err| format!("转灰度失败: {err}"))?;
+        .map_err(|err| cv("convert to gray", err))?;
     Ok(gray)
 }
 
 fn bgr_from_frame(data: &FrameData) -> Result<Mat, String> {
-    let bgra = Mat::from_slice(&data.bgra).map_err(|err| format!("BGRA Mat 失败: {err}"))?;
+    let bgra = Mat::from_slice(&data.bgra).map_err(|err| cv("BGRA Mat", err))?;
     let bgra = bgra
         .reshape(4, data.height as i32)
-        .map_err(|err| format!("BGRA reshape 失败: {err}"))?;
+        .map_err(|err| cv("BGRA reshape", err))?;
     let mut bgr = Mat::default();
     imgproc::cvt_color_def(&bgra, &mut bgr, imgproc::COLOR_BGRA2BGR)
-        .map_err(|err| format!("转 BGR 失败: {err}"))?;
+        .map_err(|err| cv("convert to BGR", err))?;
     Ok(bgr)
 }
 
@@ -425,7 +427,7 @@ fn save_preview(
         let a = Point::new(pair[0].x as i32, pair[0].y as i32);
         let b = Point::new(pair[1].x as i32, pair[1].y as i32);
         imgproc::line(&mut image, a, b, green, 1, imgproc::LINE_AA, 0)
-            .map_err(|err| format!("画轨迹失败: {err}"))?;
+            .map_err(|err| cv("draw trail", err))?;
     }
     for point in points {
         imgproc::circle(
@@ -437,7 +439,7 @@ fn save_preview(
             imgproc::LINE_AA,
             0,
         )
-        .map_err(|err| format!("画检测点失败: {err}"))?;
+        .map_err(|err| cv("draw detections", err))?;
     }
     imgproc::circle(
         &mut image,
@@ -448,14 +450,14 @@ fn save_preview(
         imgproc::LINE_AA,
         0,
     )
-    .map_err(|err| format!("画目标点失败: {err}"))?;
+    .map_err(|err| cv("draw target", err))?;
     if let Some(parent) = path.parent() {
         if !parent.as_os_str().is_empty() {
             std::fs::create_dir_all(parent).ok();
         }
     }
     imgcodecs::imwrite(path, &image, &Vector::<i32>::new())
-        .map_err(|err| format!("保存预览失败: {err}"))?;
+        .map_err(|err| cv("save preview", err))?;
     Ok(())
 }
 

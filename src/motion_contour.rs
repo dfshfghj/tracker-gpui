@@ -5,6 +5,7 @@
 //! the per-frame motion contour directly and falls back to a grayscale
 //! template when the motion mask disappears.
 
+use crate::i18n::tr;
 use std::collections::BTreeMap;
 
 use crate::aruco_detect::gray_from_frame;
@@ -59,7 +60,7 @@ pub(crate) fn detect_motion_contour(
 ) -> Result<RigidResult, String> {
     let meta = source.meta().clone();
     if meta.frames == 0 {
-        return Err("视频没有可用帧".into());
+        return Err(tr("msg.no_frames"));
     }
     let rect = normalized_rect(roi, meta.width, meta.height)?;
     let reference_frame = reference_frame.min(meta.frames - 1);
@@ -171,7 +172,7 @@ fn detect_fixed(
         last_pose = Some(pose);
     }
     let Some(pose) = last_pose else {
-        return Err("形状学习窗口内没有可用位姿".into());
+        return Err(tr("msg.no_pose_in_window"));
     };
     let velocity = estimate_velocity(&points);
     if trace {
@@ -204,7 +205,7 @@ fn detect_fixed(
         }
     }
     if points.len() < 2 {
-        return Err("运动轮廓未能持续跟踪".into());
+        return Err(tr("msg.motion_contour_lost"));
     }
     if trace {
         eprintln!(
@@ -254,10 +255,10 @@ fn detect_pure(
         }
     }
     let (Some(reference_gray), Some(reference_mask)) = (reference_gray, reference_mask) else {
-        return Err("无法读取参考帧".into());
+        return Err(tr("msg.reference_unreadable"));
     };
     let reference = collect_reference(&reference_mask, rect, roi_center)?
-        .ok_or_else(|| "参考帧附近没有可用的运动轮廓".to_string())?;
+        .ok_or_else(|| tr("msg.no_contour_near_reference"))?;
     let scale = reference.area.sqrt().max(1.0);
     let pose = ShapePose {
         center: reference.center,
@@ -308,7 +309,7 @@ fn detect_pure(
         }
     }
     if points.len() < 2 {
-        return Err("运动轮廓未能持续跟踪".into());
+        return Err(tr("msg.motion_contour_lost"));
     }
     if trace {
         eprintln!(

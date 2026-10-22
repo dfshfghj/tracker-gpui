@@ -1,5 +1,6 @@
 //! ArUco based 2D rigid-body tracking.
 
+use crate::i18n::tr;
 use std::collections::BTreeMap;
 
 use crate::aruco_detect::{detect_frame, gray_from_frame, new_detector};
@@ -38,7 +39,7 @@ pub(crate) struct RigidResult {
 pub(crate) fn detect_rigid(source: &FrameSource) -> Result<RigidResult, String> {
     let meta = source.meta().clone();
     if meta.frames == 0 {
-        return Err("视频没有可用帧".into());
+        return Err(tr("msg.no_frames"));
     }
     let detector = new_detector()?;
     let mut reader = source.reader()?;
@@ -85,10 +86,10 @@ pub(crate) fn detect_rigid(source: &FrameSource) -> Result<RigidResult, String> 
     }
 
     let Some(layout) = layout else {
-        return Err("未检测到 ArUco 标记".into());
+        return Err(tr("msg.no_aruco"));
     };
     if points.len() < 2 {
-        return Err("刚体轨迹点太少".into());
+        return Err(tr("msg.too_few_rigid_points"));
     }
     Ok(RigidResult {
         dictionary: DICTIONARY_NAME.to_string(),

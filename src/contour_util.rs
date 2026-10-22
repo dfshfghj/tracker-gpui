@@ -1,5 +1,6 @@
 //! Contour pose extraction and template matching for the silhouette tracker.
 
+use crate::i18n::cv;
 use opencv::core::{self, Mat, Point, Point2f, Scalar, Vector};
 use opencv::imgproc;
 use opencv::prelude::*;
@@ -22,7 +23,7 @@ pub(crate) fn find_contours_in(
     }
     let crop = mask
         .roi(rect)
-        .map_err(|err| format!("轮廓 ROI 裁剪失败: {err}"))?;
+        .map_err(|err| cv("crop contour ROI", err))?;
     let mut contours = Vector::<Mat>::new();
     imgproc::find_contours(
         &crop,
@@ -31,17 +32,17 @@ pub(crate) fn find_contours_in(
         imgproc::CHAIN_APPROX_SIMPLE,
         Point::new(0, 0),
     )
-    .map_err(|err| format!("查找轮廓失败: {err}"))?;
+    .map_err(|err| cv("find contours", err))?;
     let max_area = rect.width as f64 * rect.height as f64 * 0.9;
     let mut result = Vec::new();
     for contour in contours.iter() {
         let area = imgproc::contour_area(&contour, false)
-            .map_err(|err| format!("轮廓面积失败: {err}"))?;
+            .map_err(|err| cv("contour area", err))?;
         if area < 20.0 || area > max_area {
             continue;
         }
         let moments = imgproc::moments(&contour, false)
-            .map_err(|err| format!("轮廓矩失败: {err}"))?;
+            .map_err(|err| cv("contour moments", err))?;
         if moments.m00 <= 1e-6 {
             continue;
         }
@@ -52,7 +53,7 @@ pub(crate) fn find_contours_in(
         let angle = 0.5 * (2.0 * moments.mu11).atan2(moments.mu20 - moments.mu02) as f32;
         let contour_points = contour
             .data_typed::<Point>()
-            .map_err(|err| format!("轮廓点读取失败: {err}"))?;
+            .map_err(|err| cv("read contour points", err))?;
         let points = contour_points
             .iter()
             .map(|point| {
@@ -63,7 +64,7 @@ pub(crate) fn find_contours_in(
             })
             .collect();
         let local_bbox = imgproc::bounding_rect(&contour)
-            .map_err(|err| format!("轮廓包围盒失败: {err}"))?;
+            .map_err(|err| cv("contour bounding rect", err))?;
         let bbox = core::Rect::new(
             local_bbox.x + rect.x,
             local_bbox.y + rect.y,
@@ -96,11 +97,11 @@ pub(crate) fn make_template(gray: &Mat, info: &ContourInfo) -> Result<Template, 
     let bbox = core::Rect::new(x, y, (right - x).max(2), (bottom - y).max(2));
     let patch = gray
         .roi(bbox)
-        .map_err(|err| format!("模板裁剪失败: {err}"))?
+        .map_err(|err| cv("crop template", err))?
         .clone_pointee();
     let mut mask =
         Mat::new_rows_cols_with_default(bbox.height, bbox.width, core::CV_8UC1, Scalar::all(0.0))
-            .map_err(|err| format!("模板掩膜失败: {err}"))?;
+            .map_err(|err| cv("template mask", err))?;
     let points: Vector<Point> = info
         .points
         .iter()
@@ -115,7 +116,7 @@ pub(crate) fn make_template(gray: &Mat, info: &ContourInfo) -> Result<Template, 
         0,
         Point::new(0, 0),
     )
-    .map_err(|err| format!("填充模板失败: {err}"))?;
+    .map_err(|err| cv("fill template", err))?;
     Ok(Template {
         patch,
         mask,
@@ -133,7 +134,7 @@ pub(crate) fn match_template_in(
     }
     let image = gray
         .roi(search)
-        .map_err(|err| format!("模板搜索裁剪失败: {err}"))?;
+        .map_err(|err| cv("crop template search", err))?;
     let mut result = Mat::default();
     imgproc::match_template(
         &image,
@@ -142,7 +143,7 @@ pub(crate) fn match_template_in(
         imgproc::TM_CCORR_NORMED,
         &template.mask,
     )
-    .map_err(|err| format!("模板匹配失败: {err}"))?;
+    .map_err(|err| cv("template match", err))?;
     let mut max_val = 0.0;
     let mut max_loc = Point::new(0, 0);
     core::min_max_loc(
@@ -153,7 +154,7 @@ pub(crate) fn match_template_in(
         Some(&mut max_loc),
         &core::no_array(),
     )
-    .map_err(|err| format!("模板峰值失败: {err}"))?;
+    .map_err(|err| cv("template peak", err))?;
     if !max_val.is_finite() || max_val < 0.45 {
         return Ok(None);
     }

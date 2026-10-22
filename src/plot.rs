@@ -3,6 +3,7 @@
 
 use crate::coords::ImageCoordSystem;
 use crate::track::{MeasurementKind, Track};
+use rust_i18n::t;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -26,25 +27,26 @@ pub enum PlotVar {
 }
 
 impl PlotVar {
-    pub fn label(self) -> &'static str {
+    pub fn label(self) -> String {
         match self {
-            Self::Frame => "帧",
-            Self::Time => "t",
-            Self::X => "x",
-            Self::Y => "y",
-            Self::Vx => "vx",
-            Self::Vy => "vy",
-            Self::Ax => "ax",
-            Self::Ay => "ay",
-            Self::Speed => "|v|",
-            Self::Length => "长度",
-            Self::Angle => "角度",
-            Self::Arm1 => "臂1",
-            Self::Arm2 => "臂2",
-            Self::Radius => "半径",
-            Self::CenterX => "圆心 x",
-            Self::CenterY => "圆心 y",
+            Self::Frame => t!("plot.var.frame"),
+            Self::Time => "t".into(),
+            Self::X => "x".into(),
+            Self::Y => "y".into(),
+            Self::Vx => "vx".into(),
+            Self::Vy => "vy".into(),
+            Self::Ax => "ax".into(),
+            Self::Ay => "ay".into(),
+            Self::Speed => "|v|".into(),
+            Self::Length => t!("plot.var.length"),
+            Self::Angle => t!("plot.var.angle"),
+            Self::Arm1 => t!("plot.var.arm1"),
+            Self::Arm2 => t!("plot.var.arm2"),
+            Self::Radius => t!("plot.var.radius"),
+            Self::CenterX => t!("plot.var.center_x"),
+            Self::CenterY => t!("plot.var.center_y"),
         }
+        .to_string()
     }
 
     pub fn unit(self, length_unit: &str) -> String {

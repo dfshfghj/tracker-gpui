@@ -1,5 +1,6 @@
 //! ORB reference extraction and masked frame-to-reference matching.
 
+use crate::i18n::cv;
 use opencv::core::{self, DMatch, KeyPoint, KeyPointTraitConst, Mat, Point2f, Vector};
 use opencv::features2d::{BFMatcher, Feature2DTrait, ORB};
 use opencv::prelude::*;
@@ -16,12 +17,12 @@ pub(crate) fn reference_features(
 ) -> Result<ReferenceFeatures, String> {
     let roi = gray
         .roi(rect)
-        .map_err(|err| format!("ROI 裁剪失败: {err}"))?;
-    let mut orb = ORB::create_def().map_err(|err| format!("创建 ORB 失败: {err}"))?;
+        .map_err(|err| cv("crop ROI", err))?;
+    let mut orb = ORB::create_def().map_err(|err| cv("create ORB", err))?;
     let mut keypoints = Vector::<KeyPoint>::new();
     let mut descriptors = Mat::default();
     orb.detect_and_compute_def(&roi, &core::no_array(), &mut keypoints, &mut descriptors)
-        .map_err(|err| format!("ROI 特征提取失败: {err}"))?;
+        .map_err(|err| cv("extract ROI features", err))?;
     Ok(ReferenceFeatures {
         keypoints,
         descriptors,
@@ -35,11 +36,11 @@ pub(crate) fn match_frame(
     mask: &Mat,
     matcher: &mut BFMatcher,
 ) -> Result<(Vector<Point2f>, Vector<Point2f>), String> {
-    let mut orb = ORB::create_def().map_err(|err| format!("创建 ORB 失败: {err}"))?;
+    let mut orb = ORB::create_def().map_err(|err| cv("create ORB", err))?;
     let mut keypoints = Vector::<KeyPoint>::new();
     let mut descriptors = Mat::default();
     orb.detect_and_compute_def(gray, mask, &mut keypoints, &mut descriptors)
-        .map_err(|err| format!("提取帧特征失败: {err}"))?;
+        .map_err(|err| cv("extract frame features", err))?;
     let mut source = Vector::<Point2f>::new();
     let mut target = Vector::<Point2f>::new();
     if keypoints.len() < 8 || descriptors.empty() {
@@ -48,7 +49,7 @@ pub(crate) fn match_frame(
     let mut matches = Vector::<Vector<DMatch>>::new();
     matcher
         .knn_train_match_def(&reference.descriptors, &descriptors, &mut matches, 2)
-        .map_err(|err| format!("特征匹配失败: {err}"))?;
+        .map_err(|err| cv("match features", err))?;
     for pair in matches.iter() {
         let mut iter = pair.iter();
         let (Some(first), Some(second)) = (iter.next(), iter.next()) else {

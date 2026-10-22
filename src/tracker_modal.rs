@@ -5,6 +5,8 @@ use std::sync::Arc;
 use gpui_component::scroll::ScrollableElement;
 use gpui_kit::*;
 
+use crate::i18n::tr;
+use rust_i18n::t;
 use crate::*;
 
 struct TrackerDialogData {
@@ -26,11 +28,12 @@ struct TrackerDialogData {
 
 fn tracker_choice(
     id: usize,
-    label: &'static str,
+    label: impl Into<SharedString>,
     active: bool,
     cx: &mut Context<Probe>,
     action: impl Fn(&mut Probe, &mut Context<Probe>) + 'static,
 ) -> AnyElement {
+    let label = label.into();
     div()
         .id(("tracker-choice", id))
         .px_2()
@@ -53,13 +56,14 @@ fn tracker_choice(
 }
 
 fn tracker_num_field(
-    label: &'static str,
+    label: impl Into<SharedString>,
     value: String,
     active: bool,
     field: TrackerField,
     state: Rc<RefCell<State>>,
     cx: &mut Context<Probe>,
 ) -> AnyElement {
+    let label = label.into();
     div()
         .flex()
         .items_center()
@@ -89,7 +93,8 @@ fn tracker_num_field(
         .into_any_element()
 }
 
-fn tracker_thumb(label: &'static str, image: Option<Arc<RenderImage>>) -> AnyElement {
+fn tracker_thumb(label: impl Into<SharedString>, image: Option<Arc<RenderImage>>) -> AnyElement {
+    let label = label.into();
     let mut panel = div()
         .flex()
         .flex_col()
@@ -136,12 +141,15 @@ fn dialog_header(data: &TrackerDialogData) -> AnyElement {
                 .truncate()
                 .text_sm()
                 .font_weight(FontWeight::BOLD)
-                .child(format!("AutoTracker: {} 位置", data.track_name)),
+                .child(t!("tracker_ui.title", name = data.track_name).to_string()),
         )
-        .child(div().text_xs().text_color(c(0x7d8ca6)).child(format!(
-            "帧 {} / {} · 关键帧 {}",
-            data.frame, data.frame_count, data.keyframes
-        )))
+        .child(div().text_xs().text_color(c(0x7d8ca6)).child(t!(
+            "tracker_ui.header",
+            frame = data.frame,
+            count = data.frame_count,
+            keyframes = data.keyframes
+        )
+        .to_string()))
         .into_any_element()
 }
 
@@ -152,12 +160,12 @@ fn dialog_actions(
 ) -> AnyElement {
     let search_label = if data.running {
         if data.paused {
-            "继续"
+            tr("tracker_ui.resume")
         } else {
-            "暂停"
+            tr("tracker_ui.pause")
         }
     } else {
-        "搜索"
+        tr("tracker_ui.search")
     };
     let search_state = state.clone();
     let back_state = state.clone();
@@ -169,11 +177,11 @@ fn dialog_actions(
         .child(modal_button(search_label, true, cx, move |_this, _cx| {
             search_state.borrow_mut().tracker_search_action();
         }))
-        .child(modal_button("上一步", false, cx, move |_this, _cx| {
+        .child(modal_button(tr("tracker_ui.back"), false, cx, move |_this, _cx| {
             back_state.borrow_mut().tracker_step_back();
         }))
         .child(modal_button(
-            "搜索下一帧",
+            tr("tracker_ui.search_next"),
             false,
             cx,
             move |_this, _cx| {
@@ -187,11 +195,12 @@ fn dialog_actions(
             },
         ))
         .child(div().flex_1())
-        .child(div().text_xs().text_color(c(0x5f6f88)).child(format!(
-            "{} 搜索 · {}",
-            data.settings.search_policy.label(),
-            data.settings.stop_policy.label()
-        )))
+        .child(div().text_xs().text_color(c(0x5f6f88)).child(t!(
+            "tracker_ui.policy",
+            search = data.settings.search_policy.label(),
+            stop = data.settings.stop_policy.label()
+        )
+        .to_string()))
         .into_any_element()
 }
 
@@ -214,17 +223,18 @@ fn dialog_preview(
         c(0x5f6f88)
     };
     let info = if data.running {
-        format!(
-            "{} · 第 {} 帧 · {} 点 · 匹配标准 {}",
-            if data.paused {
-                "已暂停"
+        t!(
+            "tracker_ui.info",
+            state = if data.paused {
+                tr("tracker_ui.paused")
             } else {
-                "搜索中"
+                tr("tracker_ui.searching")
             },
-            data.frame,
-            data.points,
-            score
+            frame = data.frame,
+            points = data.points,
+            score = score
         )
+        .to_string()
     } else {
         data.status.clone()
     };
@@ -240,11 +250,11 @@ fn dialog_preview(
             div()
                 .text_xs()
                 .text_color(c(0x8fa3bf))
-                .child(format!("帧 {}:", data.frame)),
+                .child(t!("tracker_ui.frame", frame = data.frame).to_string()),
         )
-        .child(tracker_thumb("模板", template))
+        .child(tracker_thumb(tr("tracker_ui.template"), template))
         .child(div().text_xs().text_color(c(0x5f6f88)).child("="))
-        .child(tracker_thumb("匹配", matched))
+        .child(tracker_thumb(tr("tracker_ui.matched"), matched))
         .child(div().flex_1())
         .child(
             div()
@@ -253,10 +263,12 @@ fn dialog_preview(
                 .flex_col()
                 .gap_1()
                 .child(div().text_xs().text_color(info_color).child(info))
-                .child(div().text_xs().text_color(info_color).child(format!(
-                    "帧 {}（匹配标准 {}）: 与模板匹配的点会被自动标记。",
-                    data.frame, score
-                ))),
+                .child(div().text_xs().text_color(info_color).child(t!(
+                    "tracker_ui.match_hint",
+                    frame = data.frame,
+                    score = score
+                )
+                .to_string())),
         )
         .into_any_element()
 }
@@ -279,10 +291,10 @@ fn dialog_fields(
                 .w(px(48.))
                 .text_xs()
                 .text_color(c(0x8fa3bf))
-                .child("模板:"),
+                .child(tr("tracker_ui.template_label")),
         )
         .child(tracker_num_field(
-            "演化 %",
+            tr("tracker_ui.evolve"),
             data.inputs[3].clone(),
             data.field == TrackerField::Evolve,
             TrackerField::Evolve,
@@ -298,7 +310,7 @@ fn dialog_fields(
             cx,
         ))
         .child(tracker_num_field(
-            "自动标记",
+            tr("tracker_ui.auto_mark"),
             data.inputs[5].clone(),
             data.field == TrackerField::AutoMark,
             TrackerField::AutoMark,
@@ -314,11 +326,11 @@ fn dialog_fields(
                 .w(px(48.))
                 .text_xs()
                 .text_color(c(0x8fa3bf))
-                .child("形状:"),
+                .child(tr("tracker_ui.shape")),
         )
         .child(tracker_choice(
             410,
-            "椭圆",
+            tr("tracker_ui.ellipse"),
             shape == MaskShape::Ellipse,
             cx,
             |this, _cx| {
@@ -329,7 +341,7 @@ fn dialog_fields(
         ))
         .child(tracker_choice(
             411,
-            "矩形",
+            tr("tracker_ui.rect"),
             shape == MaskShape::Rectangle,
             cx,
             |this, _cx| {
@@ -340,7 +352,7 @@ fn dialog_fields(
         ))
         .child(div().w(px(12.)).h(px(1.)).bg(c(0x1d2a3d)))
         .child(tracker_num_field(
-            "宽",
+            tr("tracker_ui.width"),
             data.inputs[0].clone(),
             data.field == TrackerField::MaskWidth,
             TrackerField::MaskWidth,
@@ -348,7 +360,7 @@ fn dialog_fields(
             cx,
         ))
         .child(tracker_num_field(
-            "高",
+            tr("tracker_ui.height"),
             data.inputs[1].clone(),
             data.field == TrackerField::MaskHeight,
             TrackerField::MaskHeight,
@@ -356,7 +368,7 @@ fn dialog_fields(
             cx,
         ))
         .child(tracker_num_field(
-            "搜索",
+            tr("tracker_ui.search"),
             data.inputs[2].clone(),
             data.field == TrackerField::Search,
             TrackerField::Search,
@@ -372,7 +384,7 @@ fn dialog_fields(
                 .w(px(48.))
                 .text_xs()
                 .text_color(c(0x8fa3bf))
-                .child("搜索:"),
+                .child(tr("tracker_ui.search_label")),
         )
         .child(check_item(400, "Fast", data.fast, true, cx, |this, _cx| {
             let mut st = this.state.borrow_mut();
@@ -415,7 +427,7 @@ fn dialog_fields(
         .child(div().w(px(12.)).h(px(1.)).bg(c(0x1d2a3d)))
         .child(check_item(
             401,
-            "仅 X 轴",
+            tr("tracker_ui.only_x"),
             settings.one_d,
             true,
             cx,
@@ -474,9 +486,9 @@ fn dialog_fields(
                 .w(px(48.))
                 .text_xs()
                 .text_color(c(0x8fa3bf))
-                .child("目标:"),
+                .child(tr("tracker_ui.target")),
         )
-        .child(div().text_xs().text_color(c(0x7d8ca6)).child("轨迹"))
+        .child(div().text_xs().text_color(c(0x7d8ca6)).child(tr("tracker_ui.trail")))
         .child(
             div()
                 .id("tracker-target-track")
@@ -498,7 +510,7 @@ fn dialog_fields(
                 )
                 .child(track_label),
         )
-        .child(div().text_xs().text_color(c(0x7d8ca6)).child("点"))
+        .child(div().text_xs().text_color(c(0x7d8ca6)).child(tr("tracker_ui.points")))
         .child(
             div()
                 .px_2()
@@ -507,7 +519,7 @@ fn dialog_fields(
                 .bg(c(0x111a29))
                 .text_xs()
                 .text_color(c(0x9fb2cc))
-                .child("位置"),
+                .child(tr("tracker_ui.position")),
         );
     div()
         .flex()
@@ -540,27 +552,27 @@ fn dialog_footer(
             div()
                 .text_xs()
                 .text_color(c(0x5f6f88))
-                .child("Tab 切换字段 · Enter 应用参数 · Esc 关闭；修改跟踪参数后点“搜索”生效"),
+                .child(tr("tracker_ui.hint")),
         )
         .child(
             div()
                 .flex()
                 .justify_end()
                 .gap_2()
-                .child(modal_button("帮助", false, cx, move |_this, _cx| {
+                .child(modal_button(tr("tracker_ui.help"), false, cx, move |_this, _cx| {
                     let mut st = help_state.borrow_mut();
                     st.close_tracker_dialog();
                     st.modal = Some(Modal::Operations);
                 }))
                 .child(modal_button(
-                    "显示关键帧",
+                    tr("tracker_ui.show_keyframe"),
                     false,
                     cx,
                     move |_this, _cx| {
                         key_state.borrow_mut().tracker_show_keyframe();
                     },
                 ))
-                .child(modal_button("删除", false, cx, move |_this, _cx| {
+                .child(modal_button(tr("tracker_ui.delete"), false, cx, move |_this, _cx| {
                     delete_state.borrow_mut().tracker_delete_current();
                 }))
                 .child(modal_button(
@@ -570,10 +582,10 @@ fn dialog_footer(
                     move |_this, cx| {
                         let text = copy_state.borrow().tracker_match_csv();
                         cx.write_to_clipboard(ClipboardItem::new_string(text));
-                        copy_state.borrow_mut().status = Some("匹配数据已复制".into());
+                        copy_state.borrow_mut().status = Some(tr("tracker_ui.copied"));
                     },
                 ))
-                .child(modal_button("关闭", false, cx, move |_this, _cx| {
+                .child(modal_button(tr("tracker_ui.close"), false, cx, move |_this, _cx| {
                     close_state.borrow_mut().close_tracker_dialog();
                 })),
         )
@@ -596,7 +608,7 @@ pub(crate) fn tracker_settings_modal_view(
             track_name: st
                 .active_track()
                 .map(|track| track.name.clone())
-                .unwrap_or_else(|| "无轨道".into()),
+                .unwrap_or_else(|| tr("tracker_ui.no_track")),
             frame: st.frame,
             frame_count: st.frame_count.saturating_sub(1),
             keyframes: st

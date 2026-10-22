@@ -1,5 +1,7 @@
 //! Markerless rigid-body tracking from a user-selected ROI.
 
+use crate::i18n::tr;
+use crate::i18n::cv;
 use std::collections::BTreeMap;
 
 use opencv::core::{self, Point2f};
@@ -20,7 +22,7 @@ pub(crate) fn detect_orb(
 ) -> Result<RigidResult, String> {
     let meta = source.meta().clone();
     if meta.frames == 0 {
-        return Err("视频没有可用帧".into());
+        return Err(tr("msg.no_frames"));
     }
     let reference_frame = reference_frame.min(meta.frames - 1);
     let rect = normalized_rect(roi, meta.width, meta.height)?;
@@ -29,10 +31,10 @@ pub(crate) fn detect_orb(
     let reference_gray = gray_from_frame(&reference)?;
     let reference = reference_features(&reference_gray, rect)?;
     if reference.keypoints.len() < 20 {
-        return Err("框选区域内特征点太少，请选择有纹理的刚体，或改用 ArUco 标记".into());
+        return Err(tr("msg.too_few_features"));
     }
     let mut matcher = BFMatcher::new(core::NORM_HAMMING, false)
-        .map_err(|err| format!("创建特征匹配器失败: {err}"))?;
+        .map_err(|err| cv("create feature matcher", err))?;
     let roi_center = Point2f::new(
         rect.x as f32 + rect.width as f32 * 0.5,
         rect.y as f32 + rect.height as f32 * 0.5,
@@ -139,7 +141,7 @@ pub(crate) fn detect_orb(
     }
 
     if points.len() < 2 {
-        return Err("ORB 未能持续跟踪刚体".into());
+        return Err(tr("msg.orb_lost"));
     }
     Ok(RigidResult {
         dictionary: "ORB".into(),
@@ -171,7 +173,7 @@ fn normalized_rect(
     let w = (x1 - x0).round() as i32;
     let h = (y1 - y0).round() as i32;
     if w < 16 || h < 16 {
-        return Err("框选区域太小".into());
+        return Err(tr("status.roi_too_small"));
     }
     Ok(core::Rect::new(x0 as i32, y0 as i32, w, h))
 }

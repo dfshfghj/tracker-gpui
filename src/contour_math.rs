@@ -1,5 +1,6 @@
 //! Small geometry helpers for silhouette tracking.
 
+use crate::i18n::tr;
 use opencv::core;
 
 pub(crate) fn search_rect(center: (f32, f32), scale: f32, width: u32, height: u32) -> core::Rect {
@@ -52,7 +53,7 @@ pub(crate) fn normalized_rect(
     let w = (x1 - x0).round() as i32;
     let h = (y1 - y0).round() as i32;
     if w < 16 || h < 16 {
-        return Err("框选区域太小".into());
+        return Err(tr("status.roi_too_small"));
     }
     Ok(core::Rect::new(x0 as i32, y0 as i32, w, h))
 }

@@ -4,6 +4,7 @@ use std::rc::Rc;
 use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::*;
 
+use crate::i18n::tr;
 use crate::*;
 
 pub(crate) fn scan_videos(dir: &std::path::Path, depth: usize) -> Vec<FileNode> {
@@ -329,9 +330,9 @@ pub(crate) fn tab_bar(state: Rc<RefCell<State>>, cx: &mut Context<Probe>) -> imp
 
 pub(crate) fn collapsed_rail(left_side: bool, cx: &mut Context<Probe>) -> AnyElement {
     let (id, icon, tooltip) = if left_side {
-        ("rail-left", ICON_FWD1, "展开工作区")
+        ("rail-left", ICON_FWD1, tr("rail.expand_workspace"))
     } else {
-        ("rail-right", ICON_BACK1, "展开属性栏")
+        ("rail-right", ICON_BACK1, tr("rail.expand_inspector"))
     };
     div()
         .w(px(24.))
@@ -484,7 +485,7 @@ pub(crate) fn video_controls(
         let st = state.borrow();
         if let Some(loading) = &st.loading {
             (
-                "索引中".to_string(),
+                tr("tree.indexing"),
                 format!("{}%", loading.progress.load(Ordering::Relaxed)),
             )
         } else {
@@ -524,17 +525,17 @@ pub(crate) fn video_controls(
         )
     };
     let buttons = [
-        (Cmd::First, ICON_FIRST, "第一帧"),
-        (Cmd::Back10, ICON_BACK10, "后退 10 帧"),
-        (Cmd::Back1, ICON_BACK1, "后退 1 帧"),
+        (Cmd::First, ICON_FIRST, tr("transport.first")),
+        (Cmd::Back10, ICON_BACK10, tr("transport.back10")),
+        (Cmd::Back1, ICON_BACK1, tr("transport.back1")),
         (
             Cmd::Play,
             if playing { ICON_PAUSE } else { ICON_PLAY },
-            if playing { "暂停" } else { "播放" },
+            if playing { tr("transport.pause") } else { tr("transport.play") },
         ),
-        (Cmd::Fwd1, ICON_FWD1, "前进 1 帧"),
-        (Cmd::Fwd10, ICON_FWD10, "前进 10 帧"),
-        (Cmd::Last, ICON_LAST, "最后一帧"),
+        (Cmd::Fwd1, ICON_FWD1, tr("transport.fwd1")),
+        (Cmd::Fwd10, ICON_FWD10, tr("transport.fwd10")),
+        (Cmd::Last, ICON_LAST, tr("transport.last")),
     ];
     let button_row = div()
         .flex()

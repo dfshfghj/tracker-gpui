@@ -6847,9 +6847,11 @@ dependencies = [
  "libc",
  "opencv",
  "raw-window-handle",
+ "rust-i18n",
  "serde",
  "serde_json",
  "smallvec",
+ "sys-locale",
 ]
 
 [[package]]

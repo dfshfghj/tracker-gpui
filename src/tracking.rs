@@ -5,6 +5,7 @@
 //! subpixel fit, and evolve/tether template updating. The trait keeps the door
 //! open for learned or classical replacement backends.
 
+use crate::i18n::tr;
 use crate::video::{FrameData, FrameSource};
 use std::collections::VecDeque;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -33,7 +34,7 @@ pub struct TrackHint {
 
 /// A replaceable tracking algorithm. Backends are moved to a worker thread.
 pub trait TrackingBackend: Send {
-    fn name(&self) -> &'static str;
+    fn name(&self) -> String;
 
     /// Captures the feature template at the start frame.
     fn initialize(&mut self, frame: &FrameData, center: (f32, f32)) -> Result<(), String>;
@@ -307,8 +308,8 @@ fn quadratic_offset(minus: f64, zero: f64, plus: f64) -> (f64, f64) {
 }
 
 impl TrackingBackend for TemplateMatchBackend {
-    fn name(&self) -> &'static str {
-        "OSP 模板匹配"
+    fn name(&self) -> String {
+        tr("tracker.backend_osp")
     }
 
     fn initialize(&mut self, frame: &FrameData, center: (f32, f32)) -> Result<(), String> {
@@ -421,11 +422,11 @@ pub enum AutoTrackEnd {
 }
 
 impl AutoTrackEnd {
-    pub fn label(self) -> &'static str {
+    pub fn label(self) -> String {
         match self {
-            Self::Finished => "跟踪完成",
-            Self::Lost => "匹配丢失",
-            Self::Stopped => "已停止",
+            Self::Finished => tr("tracker.end_finished"),
+            Self::Lost => tr("tracker.end_lost"),
+            Self::Stopped => tr("tracker.end_stopped"),
         }
     }
 }

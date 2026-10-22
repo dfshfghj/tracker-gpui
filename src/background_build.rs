@@ -1,5 +1,7 @@
 //! Build a static background by temporal median for motion segmentation.
 
+use crate::i18n::tr;
+use crate::i18n::cv;
 use opencv::core::Mat;
 use opencv::prelude::*;
 
@@ -9,7 +11,7 @@ use crate::video::FrameSource;
 pub(crate) fn build_background(source: &FrameSource) -> Result<Mat, String> {
     let meta = source.meta();
     if meta.frames == 0 {
-        return Err("视频没有可用帧".into());
+        return Err(tr("msg.no_frames"));
     }
     let sample_count = 21.min(meta.frames).max(1);
     let mut reader = source.reader()?;
@@ -24,7 +26,7 @@ pub(crate) fn build_background(source: &FrameSource) -> Result<Mat, String> {
         let gray = gray_from_frame(&data)?;
         let bytes = gray
             .data_typed::<u8>()
-            .map_err(|err| format!("背景采样失败: {err}"))?;
+            .map_err(|err| cv("sample background", err))?;
         samples.push(bytes.to_vec());
     }
     let pixels = (meta.width * meta.height) as usize;
@@ -38,10 +40,10 @@ pub(crate) fn build_background(source: &FrameSource) -> Result<Mat, String> {
         background[pixel] = values[samples.len() / 2];
     }
     let flat = Mat::from_slice(background.as_slice())
-        .map_err(|err| format!("背景 Mat 失败: {err}"))?;
+        .map_err(|err| cv("background Mat", err))?;
     let background = flat
         .reshape(1, meta.height as i32)
-        .map_err(|err| format!("背景 reshape 失败: {err}"))?
+        .map_err(|err| cv("background reshape", err))?
         .clone_pointee();
     Ok(background)
 }

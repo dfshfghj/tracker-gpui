@@ -1,5 +1,6 @@
 //! Search mask around the predicted rigid-body ROI.
 
+use crate::i18n::cv;
 use opencv::core::{self, Mat, Point, Scalar, Vector};
 use opencv::imgproc;
 
@@ -12,7 +13,7 @@ pub(crate) fn roi_mask(
     height: i32,
 ) -> Result<Mat, String> {
     let mut mask = Mat::new_rows_cols_with_default(height, width, core::CV_8UC1, Scalar::all(0.0))
-        .map_err(|err| format!("创建搜索掩膜失败: {err}"))?;
+        .map_err(|err| cv("create search mask", err))?;
     let corners = [
         (rect.x as f32, rect.y as f32),
         ((rect.x + rect.width) as f32, rect.y as f32),
@@ -38,6 +39,6 @@ pub(crate) fn roi_mask(
     });
     let polygon = Vector::<Point>::from_slice(&points);
     imgproc::fill_convex_poly(&mut mask, &polygon, Scalar::all(255.0), imgproc::LINE_8, 0)
-        .map_err(|err| format!("绘制搜索掩膜失败: {err}"))?;
+        .map_err(|err| cv("draw search mask", err))?;
     Ok(mask)
 }

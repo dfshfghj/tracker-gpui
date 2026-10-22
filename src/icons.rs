@@ -30,7 +30,7 @@ pub(crate) const ICON_PROTRACTOR: &str = r#"<svg xmlns="http://www.w3.org/2000/s
 pub(crate) const ICON_CIRCLE_FIT: &str = r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke='#000' stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><circle cx="4" cy="12" r="1.3"/><circle cx="20" cy="12" r="1.3"/><circle cx="12" cy="4" r="1.3"/></svg>"#;
 
 pub(crate) struct TooltipLabel {
-    text: &'static str,
+    text: SharedString,
 }
 
 impl Render for TooltipLabel {
@@ -44,7 +44,7 @@ impl Render for TooltipLabel {
             .border_color(c(0x2a3b55))
             .text_xs()
             .text_color(c(0xdbe6f5))
-            .child(self.text)
+            .child(self.text.clone())
     }
 }
 
@@ -52,7 +52,7 @@ impl Render for TooltipLabel {
 pub(crate) fn icon_button(
     id: &'static str,
     icon: &'static str,
-    tooltip: &'static str,
+    tooltip: impl Into<SharedString>,
     button_size: f32,
     icon_size: f32,
     active: bool,
@@ -60,6 +60,7 @@ pub(crate) fn icon_button(
     cx: &mut Context<Probe>,
     action: impl Fn(&mut Probe, &mut Context<Probe>) + 'static,
 ) -> AnyElement {
+    let tooltip = tooltip.into();
     let icon_color = if !enabled {
         c(0x4a5a73)
     } else if active {
@@ -85,7 +86,12 @@ pub(crate) fn icon_button(
         .when(enabled, |this| {
             this.cursor_pointer()
                 .hover(|style| style.bg(c(0x152238)))
-                .tooltip(move |_window, cx| cx.new(|_| TooltipLabel { text: tooltip }).into())
+                .tooltip(move |_window, cx| {
+                    cx.new(|_| TooltipLabel {
+                        text: tooltip.clone(),
+                    })
+                    .into()
+                })
                 .on_mouse_down(
                     MouseButton::Left,
                     cx.listener(move |this, _ev, _window, cx| {
@@ -110,13 +116,14 @@ pub(crate) fn icon_button(
 pub(crate) fn group_icon_button(
     id: &'static str,
     icon: &'static str,
-    tooltip: &'static str,
+    tooltip: impl Into<SharedString>,
     group: ToolGroup,
     active: bool,
     enabled: bool,
     cx: &mut Context<Probe>,
     left_action: impl Fn(&mut Probe, &mut Context<Probe>) + 'static,
 ) -> AnyElement {
+    let tooltip = tooltip.into();
     let icon_color = if !enabled {
         c(0x4a5a73)
     } else if active {
@@ -143,7 +150,12 @@ pub(crate) fn group_icon_button(
         .when(enabled, |this| {
             this.cursor_pointer()
                 .hover(|style| style.bg(c(0x152238)))
-                .tooltip(move |_window, cx| cx.new(|_| TooltipLabel { text: tooltip }).into())
+                .tooltip(move |_window, cx| {
+                    cx.new(|_| TooltipLabel {
+                        text: tooltip.clone(),
+                    })
+                    .into()
+                })
                 .on_mouse_down(
                     MouseButton::Left,
                     cx.listener(move |this, _ev, _window, cx| {
@@ -192,12 +204,13 @@ pub(crate) fn group_icon_button(
 pub(crate) fn menu_icon_button(
     id: &'static str,
     icon: &'static str,
-    tooltip: &'static str,
+    tooltip: impl Into<SharedString>,
     group: ToolGroup,
     active: bool,
     enabled: bool,
     cx: &mut Context<Probe>,
 ) -> AnyElement {
+    let tooltip = tooltip.into();
     let icon_color = if !enabled {
         c(0x4a5a73)
     } else if active {
@@ -224,7 +237,12 @@ pub(crate) fn menu_icon_button(
         .when(enabled, |this| {
             this.cursor_pointer()
                 .hover(|style| style.bg(c(0x152238)))
-                .tooltip(move |_window, cx| cx.new(|_| TooltipLabel { text: tooltip }).into())
+                .tooltip(move |_window, cx| {
+                    cx.new(|_| TooltipLabel {
+                        text: tooltip.clone(),
+                    })
+                    .into()
+                })
                 .on_mouse_down(
                     MouseButton::Left,
                     cx.listener(move |this, ev: &MouseDownEvent, _window, cx| {

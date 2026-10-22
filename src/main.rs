@@ -18,6 +18,7 @@ mod video;
 use video::{FrameData, VideoStream};
 
 use gpui_kit::*;
+use rust_i18n::t;
 use serde::{Deserialize, Serialize};
 
 mod coords;
@@ -43,6 +44,7 @@ mod contour_math;
 #[cfg(feature = "vision")]
 mod contour_util;
 mod icons;
+mod i18n;
 mod menus;
 mod overlay;
 mod modals;
@@ -98,6 +100,10 @@ use theme::*;
 use widgets::*;
 use workspace::*;
 
+// Compile-time translation tables from `locales/*.yml`. `t!` resolves against
+// this crate's backend, so every module can simply `use rust_i18n::t;`.
+rust_i18n::i18n!("locales", fallback = "en");
+
 pub(crate) const PALETTE: [u32; 8] = [
     0xff6b6b, 0x4dabf7, 0x51cf66, 0xffd43b, 0xb197fc, 0xff922b, 0x22b8cf, 0xf783ac,
 ];
@@ -135,11 +141,12 @@ enum PointDetectMethod {
 }
 
 impl PointDetectMethod {
-    fn label(self) -> &'static str {
+    fn label(self) -> String {
         match self {
-            Self::AutoTracker => "AutoTracker",
-            Self::AutoDetect => "自动检测目标",
+            Self::AutoTracker => t!("detect.point.auto_tracker"),
+            Self::AutoDetect => t!("detect.point.auto_detect"),
         }
+        .to_string()
     }
 
     fn icon(self) -> &'static str {
@@ -149,11 +156,12 @@ impl PointDetectMethod {
         }
     }
 
-    fn tooltip(self) -> &'static str {
+    fn tooltip(self) -> String {
         match self {
-            Self::AutoTracker => "质点检测：AutoTracker（右键切换方法）",
-            Self::AutoDetect => "质点检测：自动检测目标（右键切换方法）",
+            Self::AutoTracker => t!("detect.point.tooltip_auto_tracker"),
+            Self::AutoDetect => t!("detect.point.tooltip_auto_detect"),
         }
+        .to_string()
     }
 }
 
@@ -165,12 +173,13 @@ enum RigidDetectMethod {
 }
 
 impl RigidDetectMethod {
-    fn label(self) -> &'static str {
+    fn label(self) -> String {
         match self {
-            Self::Aruco => "ArUco 刚体",
-            Self::Markerless => "无标记刚体",
-            Self::MotionContour => "运动轮廓",
+            Self::Aruco => t!("detect.rigid.aruco"),
+            Self::Markerless => t!("detect.rigid.markerless"),
+            Self::MotionContour => t!("detect.rigid.motion_contour"),
         }
+        .to_string()
     }
 
     fn icon(self) -> &'static str {
@@ -181,12 +190,13 @@ impl RigidDetectMethod {
         }
     }
 
-    fn tooltip(self) -> &'static str {
+    fn tooltip(self) -> String {
         match self {
-            Self::Aruco => "刚体检测：ArUco（右键切换方法）",
-            Self::Markerless => "刚体检测：无标记刚体（右键切换方法）",
-            Self::MotionContour => "刚体检测：运动轮廓（右键切换方法）",
+            Self::Aruco => t!("detect.rigid.tooltip_aruco"),
+            Self::Markerless => t!("detect.rigid.tooltip_markerless"),
+            Self::MotionContour => t!("detect.rigid.tooltip_motion_contour"),
         }
+        .to_string()
     }
 }
 
@@ -227,15 +237,16 @@ impl Tool {
         matches!(self, Tool::Tape | Tool::Protractor | Tool::Circle)
     }
 
-    fn label(self) -> &'static str {
+    fn label(self) -> String {
         match self {
-            Tool::Move => "移动/选择",
-            Tool::Origin => "设定坐标原点",
-            Tool::OriginOffset => "原点偏移",
-            Tool::Tape => "测量尺",
-            Tool::Protractor => "量角器",
-            Tool::Circle => "圆拟合",
+            Tool::Move => t!("tool.move"),
+            Tool::Origin => t!("tool.origin"),
+            Tool::OriginOffset => t!("tool.origin_offset"),
+            Tool::Tape => t!("tool.tape"),
+            Tool::Protractor => t!("tool.protractor"),
+            Tool::Circle => t!("tool.circle"),
         }
+        .to_string()
     }
 
     fn icon(self) -> &'static str {
@@ -659,6 +670,50 @@ fn main() {
             .expect("failed to open window");
             cx.activate(true);
         });
+}
+
+#[cfg(test)]
+mod i18n_tests {
+    // The rust-i18n locale is process-global, so keep every assertion that
+    // touches it in a single test to avoid cross-test interference.
+    #[test]
+    fn strings_follow_the_active_locale() {
+        use crate::i18n;
+
+        rust_i18n::set_locale("en");
+        assert_eq!(i18n::tr("menu.item.save"), "Save");
+        assert_eq!(i18n::tr("tool.tape"), "Measuring Tape");
+        assert_eq!(
+            rust_i18n::t!("menu.item.step", n = 3, sign = "+"),
+            "Step: 3  (+)"
+        );
+
+        rust_i18n::set_locale("zh-CN");
+        assert_eq!(i18n::tr("menu.item.save"), "保存");
+        assert_eq!(i18n::tr("tool.tape"), "测量尺");
+        assert_eq!(
+            rust_i18n::t!("menu.item.step", n = 3, sign = "+"),
+            "步长: 3  (+)"
+        );
+
+        // Missing keys degrade to the key itself instead of panicking.
+        assert_eq!(i18n::tr("no.such.key"), "no.such.key");
+
+        rust_i18n::set_locale("en");
+    }
+
+    #[test]
+    fn locale_resolution_maps_system_tags_onto_shipped_locales() {
+        use crate::i18n;
+
+        assert_eq!(i18n::normalize("zh-Hans-CN"), "zh-CN");
+        assert_eq!(i18n::normalize("zh-TW"), "zh-CN");
+        assert_eq!(i18n::normalize("zh-HK"), "zh-CN");
+        assert_eq!(i18n::normalize("de-DE"), "en");
+        assert_eq!(i18n::resolve(Some("en")), "en");
+        assert_eq!(i18n::resolve(Some(i18n::AUTO)), i18n::system_locale());
+        assert_eq!(i18n::resolve(None), i18n::system_locale());
+    }
 }
 
 #[cfg(test)]

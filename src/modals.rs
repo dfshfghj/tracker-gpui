@@ -4,16 +4,19 @@ use std::rc::Rc;
 use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::*;
 
+use crate::i18n::tr;
+use rust_i18n::t;
 use crate::*;
 
 pub(crate) fn modal_button(
-    label: &'static str,
+    label: impl Into<SharedString>,
     primary: bool,
     cx: &mut Context<Probe>,
     action: impl Fn(&mut Probe, &mut Context<Probe>) + 'static,
 ) -> AnyElement {
+    let label = label.into();
     div()
-        .id(label)
+        .id(label.clone())
         .px_3()
         .py_1()
         .rounded_sm()
@@ -33,13 +36,14 @@ pub(crate) fn modal_button(
 }
 
 pub(crate) fn calibration_field_box(
-    label: &'static str,
+    label: impl Into<SharedString>,
     value: String,
     active: bool,
     field: CalibrationField,
     state: Rc<RefCell<State>>,
     cx: &mut Context<Probe>,
 ) -> AnyElement {
+    let label = label.into();
     div()
         .flex()
         .items_center()
@@ -49,7 +53,7 @@ pub(crate) fn calibration_field_box(
                 .w(px(52.))
                 .text_xs()
                 .text_color(c(0x7d8ca6))
-                .child(label),
+                .child(label.clone()),
         )
         .child(
             div()
@@ -92,15 +96,16 @@ pub(crate) fn calibration_modal_view(
             st.calibration.stick_count(),
         )
     };
-    let description = format!(
-        "编辑标尺 {} / {} 的长度。标尺只控制比例和角度，不改变坐标原点。",
-        active_stick + 1,
-        stick_count.max(1)
-    );
+    let description = t!(
+        "cal.description",
+        index = active_stick + 1,
+        count = stick_count.max(1)
+    )
+    .to_string();
 
     let rows = vec![
         calibration_field_box(
-            "长度",
+            tr("cal.length"),
             length,
             field == CalibrationField::Length,
             CalibrationField::Length,
@@ -108,7 +113,7 @@ pub(crate) fn calibration_modal_view(
             cx,
         ),
         calibration_field_box(
-            "单位",
+            tr("cal.unit"),
             unit,
             field == CalibrationField::Unit,
             CalibrationField::Unit,
@@ -116,7 +121,7 @@ pub(crate) fn calibration_modal_view(
             cx,
         ),
         calibration_field_box(
-            "小数位",
+            tr("cal.decimals"),
             decimals,
             field == CalibrationField::Decimals,
             CalibrationField::Decimals,
@@ -152,7 +157,7 @@ pub(crate) fn calibration_modal_view(
                     div()
                         .text_sm()
                         .font_weight(FontWeight::BOLD)
-                        .child("标定设置"),
+                        .child(tr("cal.title")),
                 )
                 .child(div().text_xs().text_color(c(0x7d8ca6)).child(description))
                 .children(rows)
@@ -161,7 +166,7 @@ pub(crate) fn calibration_modal_view(
                         div()
                             .text_xs()
                             .text_color(c(0xffd43b))
-                            .child("坐标已锁定，修改不会生效。"),
+                            .child(tr("cal.locked")),
                     )
                 })
                 .when_some(error, |this, error| {
@@ -171,17 +176,17 @@ pub(crate) fn calibration_modal_view(
                     div()
                         .text_xs()
                         .text_color(c(0x5f6f88))
-                        .child("Tab 切换字段 · Enter 应用 · Esc 取消"),
+                        .child(tr("cal.hint")),
                 )
                 .child(
                     div()
                         .flex()
                         .justify_end()
                         .gap_2()
-                        .child(modal_button("应用", true, cx, move |_this, _cx| {
+                        .child(modal_button(tr("dlg.apply"), true, cx, move |_this, _cx| {
                             apply_state.borrow_mut().apply_calibration_dialog();
                         }))
-                        .child(modal_button("取消", false, cx, move |_this, _cx| {
+                        .child(modal_button(tr("dlg.cancel"), false, cx, move |_this, _cx| {
                             let mut st = cancel_state.borrow_mut();
                             st.modal = None;
                             st.cal_error = None;
@@ -196,60 +201,60 @@ pub(crate) fn operations_modal_view(
     cx: &mut Context<Probe>,
 ) -> AnyElement {
     let rows = [
-        ("播放 / 暂停", "空格"),
-        ("逐帧", "← / →，Shift 为 10 帧"),
+        (tr("help.play"), tr("help.play_keys")),
+        (tr("help.frame"), tr("help.frame_keys")),
         (
-            "移动 / 打点",
-            "工具栏移动按钮或 T/Esc 清除工具选择；任意工具下 Shift+单击放置点",
+            tr("help.move"),
+            tr("help.move_keys"),
         ),
-        ("选择对象", "点击坐标轴/标尺/测量尺选中；拖动平移，端点调整"),
+        (tr("help.select"), tr("help.select_keys")),
         (
-            "对象属性",
-            "布尔项用复选框；原点/角度/长度点击编辑，Enter 提交，Esc 取消",
-        ),
-        (
-            "标定 / 测量",
-            "工具栏选择工具；点击工具栏标尺按钮新建定标尺",
+            tr("help.object_props"),
+            tr("help.object_props_keys"),
         ),
         (
-            "质点轨道",
-            "工具栏质点按钮列出所有质点轨道，点击切换当前打点目标",
-        ),
-        ("自动步进", "A 切换；新建点后前进 step size 帧"),
-        (
-            "轨迹显示",
-            "默认最近 15 帧长轨迹并显示帧号；按住 Shift 只显示当前帧；View 可切换轨迹/步号/轨迹线",
+            tr("help.calib"),
+            tr("help.calib_keys"),
         ),
         (
-            "AutoTracker",
-            "工具栏或 Tracks 菜单打开独立窗口并置顶于主窗口；关键帧显示目标十字/实线掩膜，非关键帧显示点线匹配，搜索框为虚线",
+            tr("help.point_track"),
+            tr("help.point_track_keys"),
+        ),
+        (tr("help.autostep"), tr("help.autostep_keys")),
+        (
+            tr("help.trail"),
+            tr("help.trail_keys"),
         ),
         (
-            "跟踪修正",
-            "暂停或停止后在当前帧 Shift+单击修正，再点搜索从该帧继续；可累计多个关键帧",
+            tr("help.autotracker"),
+            tr("help.autotracker_keys"),
         ),
         (
-            "右侧页签",
-            "顶部切换“对象属性”和“绘图+数据”；绘图/数据仅用于质点轨道",
+            tr("help.correction"),
+            tr("help.correction_keys"),
         ),
         (
-            "绘图",
-            "始终自动缩放，点数据点跳帧；轴标签在轴旁，无 vs 标题",
+            tr("help.tabs"),
+            tr("help.tabs_keys"),
         ),
         (
-            "数据表",
-            "列复选框默认 t/x/y；点击行选择，全选/清除/复制或 Ctrl+C",
+            tr("help.plot"),
+            tr("help.plot_keys"),
         ),
         (
-            "删除对象",
-            "Delete / Backspace；未选中对象时删除当前帧点，坐标轴不可删",
+            tr("help.table"),
+            tr("help.table_keys"),
         ),
-        ("撤销 / 重做", "Ctrl+Z / Ctrl+Shift+Z"),
-        ("缩放 / 平移", "滚轮缩放；Ctrl/Alt+滚轮平移；F 适应窗口"),
-        ("标签页", "左侧点击视频打开，× 关闭；标签栏滚轮左右滚动"),
         (
-            "侧栏",
-            "标题栏箭头收起；折叠窄条展开；View 菜单可切换左右侧栏",
+            tr("help.delete"),
+            tr("help.delete_keys"),
+        ),
+        (tr("help.undo"), tr("help.undo_keys")),
+        (tr("help.zoom"), tr("help.zoom_keys")),
+        (tr("help.tabbar"), tr("help.tabbar_keys")),
+        (
+            tr("help.sidebar"),
+            tr("help.sidebar_keys"),
         ),
     ];
     let close_state = state.clone();
@@ -295,11 +300,11 @@ pub(crate) fn operations_modal_view(
                     div()
                         .text_sm()
                         .font_weight(FontWeight::BOLD)
-                        .child("操作说明"),
+                        .child(tr("help.title")),
                 )
                 .child(body)
                 .child(div().flex().justify_end().child(modal_button(
-                    "关闭",
+                    tr("dlg.close"),
                     true,
                     cx,
                     move |_this, _cx| {
@@ -322,31 +327,31 @@ pub(crate) fn modal_view(state: Rc<RefCell<State>>, cx: &mut Context<Probe>) -> 
     }
 
     let mut buttons = Vec::new();
-    let (title, message): (&str, String) = match &modal {
+    let (title, message): (String, String) = match &modal {
         Modal::CloseDirty { index } => {
             let name = state
                 .borrow()
                 .docs
                 .get(*index)
                 .map(|doc| doc.title.clone())
-                .unwrap_or_else(|| "视频".into());
+                .unwrap_or_else(|| tr("dlg.video"));
             let index = *index;
-            buttons.push(modal_button("保存", true, cx, move |this, cx| {
+            buttons.push(modal_button(tr("dlg.save"), true, cx, move |this, cx| {
                 request_save(this.state.clone(), SaveAction::CloseDoc(index), cx);
             }));
-            buttons.push(modal_button("放弃", false, cx, move |this, _cx| {
+            buttons.push(modal_button(tr("dlg.discard"), false, cx, move |this, _cx| {
                 let mut st = this.state.borrow_mut();
                 st.close_doc(index);
                 st.modal = None;
             }));
-            buttons.push(modal_button("取消", false, cx, move |this, _cx| {
+            buttons.push(modal_button(tr("dlg.cancel"), false, cx, move |this, _cx| {
                 this.state.borrow_mut().modal = None;
             }));
-            ("未保存的修改", format!("“{name}” 有未保存的修改。"))
+            (tr("dlg.unsaved_title"), t!("dlg.unsaved_body", name = name).to_string())
         }
         Modal::ConfirmNew => {
             buttons.push(modal_button(
-                "保存并新建",
+                tr("dlg.save_and_new"),
                 true,
                 cx,
                 move |this, cx| {
@@ -354,7 +359,7 @@ pub(crate) fn modal_view(state: Rc<RefCell<State>>, cx: &mut Context<Probe>) -> 
                 },
             ));
             buttons.push(modal_button(
-                "放弃并新建",
+                tr("dlg.discard_and_new"),
                 false,
                 cx,
                 move |this, _cx| {
@@ -363,18 +368,18 @@ pub(crate) fn modal_view(state: Rc<RefCell<State>>, cx: &mut Context<Probe>) -> 
                     st.modal = None;
                 },
             ));
-            buttons.push(modal_button("取消", false, cx, move |this, _cx| {
+            buttons.push(modal_button(tr("dlg.cancel"), false, cx, move |this, _cx| {
                 this.state.borrow_mut().modal = None;
             }));
             (
-                "新建项目",
-                "当前项目有未保存的修改，是否先保存？".to_string(),
+                tr("dlg.new_project"),
+                tr("dlg.unsaved_prompt"),
             )
         }
         Modal::ConfirmOpenProject(path) => {
             let path_for_save = path.clone();
             buttons.push(modal_button(
-                "保存并打开",
+                tr("dlg.save_and_open"),
                 true,
                 cx,
                 move |this, cx| {
@@ -387,35 +392,35 @@ pub(crate) fn modal_view(state: Rc<RefCell<State>>, cx: &mut Context<Probe>) -> 
             ));
             let path_for_discard = path.clone();
             buttons.push(modal_button(
-                "放弃并打开",
+                tr("dlg.discard_and_open"),
                 false,
                 cx,
                 move |this, cx| {
                     open_project_file(this.state.clone(), path_for_discard.clone(), cx);
                 },
             ));
-            buttons.push(modal_button("取消", false, cx, move |this, _cx| {
+            buttons.push(modal_button(tr("dlg.cancel"), false, cx, move |this, _cx| {
                 this.state.borrow_mut().modal = None;
             }));
             (
-                "打开项目",
-                "当前项目有未保存的修改，是否先保存？".to_string(),
+                tr("dlg.open_project"),
+                tr("dlg.unsaved_prompt"),
             )
         }
         Modal::About => {
-            buttons.push(modal_button("关闭", true, cx, move |this, _cx| {
+            buttons.push(modal_button(tr("dlg.close"), true, cx, move |this, _cx| {
                 this.state.borrow_mut().modal = None;
             }));
             (
-                "关于 Tracker GPUI",
+                tr("dlg.about_title"),
                 "Tracker GPUI · FFmpeg 9 · gpui-kit 0.7.3".to_string(),
             )
         }
         Modal::Error(message) => {
-            buttons.push(modal_button("关闭", true, cx, move |this, _cx| {
+            buttons.push(modal_button(tr("dlg.close"), true, cx, move |this, _cx| {
                 this.state.borrow_mut().modal = None;
             }));
-            ("错误", message.clone())
+            (tr("dlg.error"), message.clone())
         }
         Modal::Calibration | Modal::Operations => unreachable!(),
     };
@@ -445,7 +450,7 @@ pub(crate) fn modal_view(state: Rc<RefCell<State>>, cx: &mut Context<Probe>) -> 
                     div()
                         .text_sm()
                         .font_weight(FontWeight::BOLD)
-                        .child(title.to_string()),
+                        .child(title),
                 )
                 .child(div().text_xs().text_color(c(0x9fb2cc)).child(message))
                 .child(div().flex().justify_end().gap_2().children(buttons)),

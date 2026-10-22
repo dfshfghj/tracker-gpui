@@ -18,6 +18,9 @@ pub struct Preferences {
     /// "auto", "light" or "dark".
     #[serde(default = "default_theme")]
     pub theme: String,
+    /// `None` / `"auto"` follows the OS locale; otherwise a BCP-47 tag.
+    #[serde(default)]
+    pub locale: Option<String>,
 }
 
 fn default_theme() -> String {

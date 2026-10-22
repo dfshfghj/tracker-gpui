@@ -3,6 +3,8 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Instant;
 
+use crate::i18n::tr;
+use rust_i18n::t;
 use crate::*;
 
 impl DocState {
@@ -10,7 +12,7 @@ impl DocState {
         Self {
             id: 0,
             path: PathBuf::new(),
-            title: "未打开视频".into(),
+            title: tr("msg.err.no_video"),
             frame: 0,
             playing: false,
             play_start: None,
@@ -540,28 +542,28 @@ impl DocState {
         single_step: bool,
     ) -> Result<(), String> {
         if self.tracking.is_some() {
-            return Err("自动跟踪已在运行".into());
+            return Err(tr("msg.err.tracking_running"));
         }
         if self.video.is_none() {
-            return Err("未打开视频".into());
+            return Err(tr("msg.err.no_video"));
         }
         let Some(track) = self.active_track() else {
-            return Err("没有可跟踪的轨道".into());
+            return Err(tr("msg.err.no_track"));
         };
         if !track.is_point_mass() {
-            return Err("自动跟踪仅支持质点轨道".into());
+            return Err(tr("msg.err.point_mass_only"));
         }
         if track.is_rigid_body() {
-            return Err("刚体轨道不支持 AutoTracker".into());
+            return Err(tr("msg.err.rigid_not_supported"));
         }
         if track.locked {
-            return Err("当前轨道已锁定".into());
+            return Err(tr("msg.err.track_locked"));
         }
         let Some((x, y)) = track.point_at(self.frame) else {
-            return Err("请先在当前帧标记跟踪起点".into());
+            return Err(tr("msg.err.need_seed"));
         };
         if self.frame >= self.frame_count.saturating_sub(1) {
-            return Err("当前已是最后一帧".into());
+            return Err(tr("msg.err.last_frame"));
         }
         let track_id = track.id;
         let step = track.step_size.max(1);
@@ -628,9 +630,9 @@ impl DocState {
             match_position: Some((x, y)),
         });
         self.status = Some(if single_step {
-            format!("{backend_name} 搜索下一帧…")
+            t!("msg.tracker.search_next", backend = backend_name).to_string()
         } else {
-            format!("{backend_name} 自动跟踪中…")
+            t!("msg.tracker.running", backend = backend_name).to_string()
         });
         Ok(())
     }
@@ -646,10 +648,12 @@ impl DocState {
         if !self.tracker_open {
             self.tracker_overlay = None;
         }
-        self.status = Some(format!(
-            "自动跟踪已停止 · {} 点 · 到第 {} 帧",
-            run.points, run.last_frame
-        ));
+        self.status = Some(t!(
+            "msg.tracker.stopped",
+            points = run.points,
+            frame = run.last_frame
+        )
+        .to_string());
         true
     }
 
@@ -663,10 +667,12 @@ impl DocState {
         self.frame = frame.min(self.frame_count.saturating_sub(1));
         self.last_requested = None;
         self.ready = None;
-        self.status = Some(format!(
-            "AutoTracker 已暂停 · 第 {} 帧 · {} 点",
-            run.last_frame, run.points
-        ));
+        self.status = Some(t!(
+            "msg.tracker.paused",
+            frame = run.last_frame,
+            points = run.points
+        )
+        .to_string());
         true
     }
 
@@ -676,7 +682,7 @@ impl DocState {
         };
         run.paused.store(false, Ordering::Relaxed);
         run.paused_ui = false;
-        self.status = Some("AutoTracker 搜索中…".into());
+        self.status = Some(tr("msg.tracker.searching"));
         true
     }
 
@@ -729,7 +735,7 @@ impl DocState {
                             AutoTrackEnd::Stopped,
                             run.last_frame,
                             run.last_confidence,
-                            "轨道已删除".into(),
+                            tr("msg.track_deleted"),
                         ));
                         break;
                     };
@@ -738,7 +744,7 @@ impl DocState {
                             AutoTrackEnd::Stopped,
                             run.last_frame,
                             run.last_confidence,
-                            "轨道已锁定".into(),
+                            tr("msg.track_locked_status"),
                         ));
                         break;
                     }
@@ -819,7 +825,7 @@ impl DocState {
                 AutoTrackEnd::Stopped,
                 run.last_frame,
                 run.last_confidence,
-                "跟踪线程已结束".into(),
+                tr("msg.tracker.finished"),
             ));
         }
         if let Some((end, frame, confidence, message)) = finish {
@@ -837,15 +843,16 @@ impl DocState {
             if points > 0 {
                 self.commit_edit();
             }
-            let mut status = format!(
-                "{} · {} 点 · 第 {}→{} 帧",
-                end.label(),
-                points,
-                start_frame,
-                frame
-            );
+            let mut status = t!(
+                "msg.tracker.summary",
+                end = end.label(),
+                points = points,
+                from = start_frame,
+                to = frame
+            )
+            .to_string();
             if confidence.is_finite() {
-                status.push_str(&format!(" · 置信度 {confidence:.2}"));
+                status.push_str(&t!("msg.tracker.confidence", value = format!("{confidence:.2}")));
             }
             if !message.is_empty() {
                 status.push_str(&format!(" · {message}"));
@@ -1131,17 +1138,17 @@ impl DocState {
         length: f64,
     ) -> Result<(), String> {
         if !length.is_finite() || length <= 0.0 {
-            return Err("长度必须大于 0".into());
+            return Err(tr("msg.err.length_positive"));
         }
         let frame = self.frame;
         let Some((a, b, _)) = self.calibration.stick(frame, index) else {
-            return Err("标尺不存在".into());
+            return Err(tr("msg.err.stick_missing"));
         };
         let dx = b[0] - a[0];
         let dy = b[1] - a[1];
         let pixel_length = (dx * dx + dy * dy).sqrt();
         if pixel_length <= 1e-9 {
-            return Err("标尺长度为零，无法计算比例".into());
+            return Err(tr("msg.err.stick_zero"));
         }
         self.calibration.set_stick_length(frame, index, length);
         self.coords.fixed_scale = self.calibration.fixed_coordinates;
@@ -1597,6 +1604,10 @@ impl State {
             "dark" => ThemeMode::Dark,
             _ => ThemeMode::Auto,
         });
+        let locale_pref = std::env::var("PROBE_LOCALE")
+            .ok()
+            .or_else(|| prefs.locale.clone());
+        crate::i18n::apply(crate::i18n::resolve(locale_pref.as_deref()));
         let initial_dir = std::env::var("PROBE_DIR")
             .ok()
             .map(PathBuf::from)
@@ -1810,31 +1821,31 @@ impl State {
         let parse_u32 = |text: &str, label: &str| -> Result<u32, String> {
             text.trim()
                 .parse::<u32>()
-                .map_err(|_| format!("{label}必须是整数"))
+                .map_err(|_| t!("msg.err.must_be_int", label = label).to_string())
         };
         let parse_f32 = |text: &str, label: &str| -> Result<f32, String> {
             text.trim()
                 .parse::<f32>()
-                .map_err(|_| format!("{label}必须是数字"))
+                .map_err(|_| t!("msg.err.must_be_number", label = label).to_string())
         };
         let result = (|| {
-            let width = parse_u32(&self.tracker_inputs[0], "掩膜宽")?;
-            let height = parse_u32(&self.tracker_inputs[1], "掩膜高")?;
+            let width = parse_u32(&self.tracker_inputs[0], &tr("field.mask_width"))?;
+            let height = parse_u32(&self.tracker_inputs[1], &tr("field.mask_height"))?;
             if !(3..=99).contains(&width) || !(3..=99).contains(&height) {
-                return Err("掩膜宽/高必须在 3–99 像素之间".to_string());
+                return Err(tr("msg.err.mask_size"));
             }
-            let search = parse_u32(&self.tracker_inputs[2], "搜索范围")?;
+            let search = parse_u32(&self.tracker_inputs[2], &tr("field.search_area"))?;
             if !(3..=240).contains(&search) {
-                return Err("搜索范围必须在 3–240 像素之间".to_string());
+                return Err(tr("msg.err.search_area"));
             }
-            let evolve = parse_f32(&self.tracker_inputs[3], "演化百分比")?;
-            let tether = parse_f32(&self.tracker_inputs[4], "束缚百分比")?;
+            let evolve = parse_f32(&self.tracker_inputs[3], &tr("field.evolve"))?;
+            let tether = parse_f32(&self.tracker_inputs[4], &tr("field.tether"))?;
             if !(0.0..=95.0).contains(&evolve) || !(0.0..=95.0).contains(&tether) {
-                return Err("演化/束缚百分比必须在 0–95 之间".to_string());
+                return Err(tr("msg.err.evolve_tether"));
             }
-            let good = parse_f32(&self.tracker_inputs[5], "自动标记阈值")?;
+            let good = parse_f32(&self.tracker_inputs[5], &tr("field.good_match"))?;
             if !good.is_finite() || !(0.0..=10.0).contains(&good) {
-                return Err("自动标记阈值必须在 0–10 之间".to_string());
+                return Err(tr("msg.err.good_match"));
             }
             let current = self.tracker_settings.clone();
             self.tracker_settings = AutoTrackSettings {
@@ -1875,7 +1886,7 @@ impl State {
                     run.fast = fast;
                 }
                 self.tracker_error = None;
-                self.status = Some("AutoTracker 搜索中…".into());
+                self.status = Some(tr("msg.tracker.searching"));
                 true
             }
             Err(err) => {
@@ -1925,7 +1936,7 @@ impl State {
         let next = self.frame.saturating_sub(step);
         self.set_frame(next);
         self.sync_tracker_overlay();
-        self.status = Some(format!("AutoTracker：回到第 {next} 帧"));
+        self.status = Some(t!("msg.tracker.back_to", frame = next).to_string());
     }
 
     pub(crate) fn tracker_show_keyframe(&mut self) {
@@ -1936,12 +1947,12 @@ impl State {
             .nearest_keyframe(self.frame, true)
             .or_else(|| track.keyframes().next())
         else {
-            self.status = Some("当前轨道尚无关键帧".into());
+            self.status = Some(tr("msg.err.no_keyframe"));
             return;
         };
         self.set_frame(frame);
         self.sync_tracker_overlay();
-        self.status = Some(format!("AutoTracker：关键帧 {frame}"));
+        self.status = Some(t!("msg.tracker.keyframe", frame = frame).to_string());
     }
 
     pub(crate) fn tracker_delete_current(&mut self) {
@@ -1954,7 +1965,7 @@ impl State {
         if let Some(track) = self.tracks.get_mut(active) {
             track.remove_keyframe(frame);
         }
-        self.status = Some(format!("已删除第 {frame} 帧标记"));
+        self.status = Some(t!("msg.point_deleted", frame = frame).to_string());
     }
 
     pub(crate) fn tracker_match_csv(&self) -> String {
@@ -2091,15 +2102,15 @@ impl State {
         let result = match edit.target {
             InlineTarget::OriginX | InlineTarget::OriginY => {
                 if self.coords.locked {
-                    Err("坐标已锁定".to_string())
+                    Err(tr("msg.err.coords_locked"))
                 } else {
                     edit.text
                         .trim()
                         .parse::<f64>()
-                        .map_err(|_| "请输入数字".to_string())
+                        .map_err(|_| tr("msg.err.enter_number"))
                         .and_then(|value| {
                             if !value.is_finite() {
-                                return Err("请输入有限数值".into());
+                                return Err(tr("msg.err.enter_finite"));
                             }
                             let frame = self.frame;
                             let mut origin = self.coords.origin(frame);
@@ -2116,15 +2127,15 @@ impl State {
             }
             InlineTarget::Angle => {
                 if self.coords.locked {
-                    Err("坐标已锁定".to_string())
+                    Err(tr("msg.err.coords_locked"))
                 } else {
                     edit.text
                         .trim()
                         .parse::<f64>()
-                        .map_err(|_| "角度必须是数字".to_string())
+                        .map_err(|_| tr("msg.err.angle_number"))
                         .and_then(|degrees| {
                             if !degrees.is_finite() {
-                                return Err("角度必须是有限数值".into());
+                                return Err(tr("msg.err.angle_finite"));
                             }
                             let frame = self.frame;
                             self.coords.set_angle(frame, degrees.to_radians());
@@ -2137,7 +2148,7 @@ impl State {
                 .text
                 .trim()
                 .parse::<f64>()
-                .map_err(|_| "长度必须是数字".to_string())
+                .map_err(|_| tr("msg.err.length_number"))
                 .and_then(|length| self.set_stick_length_value(index, length)),
         };
         match result {
@@ -2165,6 +2176,28 @@ impl State {
         }
         .to_string();
         self.prefs.save();
+    }
+
+    /// Stored language preference: `"auto"` or a BCP-47 tag.
+    pub(crate) fn language_pref(&self) -> String {
+        self.prefs
+            .locale
+            .clone()
+            .unwrap_or_else(|| crate::i18n::AUTO.to_string())
+    }
+
+    /// Switch the UI language and persist the choice.
+    ///
+    /// Callers must repaint (`cx.refresh_windows()`); `rust-i18n` only swaps a
+    /// process-global string and has no way to reach the windows.
+    pub(crate) fn apply_language(&mut self, pref: &str) {
+        self.prefs.locale = if pref == crate::i18n::AUTO {
+            None
+        } else {
+            Some(pref.to_string())
+        };
+        self.prefs.save();
+        crate::i18n::apply(crate::i18n::resolve(Some(pref)));
     }
 }
 
@@ -2301,23 +2334,23 @@ impl State {
 
     pub(crate) fn apply_calibration_dialog(&mut self) -> bool {
         if self.coords.locked {
-            self.cal_error = Some("坐标已锁定".into());
+            self.cal_error = Some(tr("msg.err.coords_locked"));
             return false;
         }
         let Ok(length) = self.cal_length_input.trim().parse::<f64>() else {
-            self.cal_error = Some("长度必须是数字".into());
+            self.cal_error = Some(tr("msg.err.length_number"));
             return false;
         };
         let Ok(decimals) = self.cal_decimals_input.trim().parse::<usize>() else {
-            self.cal_error = Some("小数位数必须是整数".into());
+            self.cal_error = Some(tr("msg.err.decimals_int"));
             return false;
         };
         if !length.is_finite() || length <= 0.0 {
-            self.cal_error = Some("长度必须大于 0".into());
+            self.cal_error = Some(tr("msg.err.length_positive"));
             return false;
         }
         if decimals > 6 {
-            self.cal_error = Some("小数位数最多 6".into());
+            self.cal_error = Some(tr("msg.err.decimals_max"));
             return false;
         }
         let unit = self.cal_unit_input.trim().to_string();

@@ -1,5 +1,7 @@
 //! Motion segmentation backends shared by the rigid-body trackers.
 
+use crate::i18n::tr;
+use crate::i18n::cv;
 use opencv::core::{self, Mat, Point, Scalar, Size};
 use opencv::video::{self, BackgroundSubtractorTrait};
 use opencv::imgproc;
@@ -15,11 +17,11 @@ pub(crate) enum SegmenterKind {
 }
 
 impl SegmenterKind {
-    pub(crate) fn label(self) -> &'static str {
+    pub(crate) fn label(self) -> String {
         match self {
-            Self::Knn => "KNN",
-            Self::Mog2 => "MOG2",
-            Self::Median => "中值",
+            Self::Knn => "KNN".to_string(),
+            Self::Mog2 => "MOG2".to_string(),
+            Self::Median => tr("msg.bg.median"),
         }
     }
 
@@ -51,7 +53,7 @@ impl Segmenter {
             SegmenterKind::Knn => (
                 Some(
                     video::create_background_subtractor_knn(500, 400.0, false)
-                        .map_err(|err| format!("创建 KNN 背景模型失败: {err}"))?,
+                        .map_err(|err| cv("create KNN background model", err))?,
                 ),
                 None,
                 None,
@@ -60,7 +62,7 @@ impl Segmenter {
                 None,
                 Some(
                     video::create_background_subtractor_mog2(120, 16.0, false)
-                        .map_err(|err| format!("创建 MOG2 背景模型失败: {err}"))?,
+                        .map_err(|err| cv("create MOG2 background model", err))?,
                 ),
                 None,
             ),
@@ -71,13 +73,13 @@ impl Segmenter {
             Size::new(7, 7),
             Point::new(-1, -1),
         )
-        .map_err(|err| format!("形态学核失败: {err}"))?;
+        .map_err(|err| cv("morphology kernel", err))?;
         let open = imgproc::get_structuring_element(
             imgproc::MORPH_ELLIPSE,
             Size::new(3, 3),
             Point::new(-1, -1),
         )
-        .map_err(|err| format!("形态学核失败: {err}"))?;
+        .map_err(|err| cv("morphology kernel", err))?;
         Ok(Self {
             kind,
             knn,
@@ -95,34 +97,34 @@ impl Segmenter {
                 let model = self
                     .knn
                     .as_mut()
-                    .ok_or_else(|| "KNN 背景模型未初始化".to_string())?;
+                    .ok_or_else(|| tr("msg.knn_uninitialized"))?;
                 BackgroundSubtractorTrait::apply_def(model, gray, &mut raw)
-                    .map_err(|err| format!("KNN 背景差分失败: {err}"))?;
+                    .map_err(|err| cv("KNN background subtraction", err))?;
             }
             SegmenterKind::Mog2 => {
                 let model = self
                     .mog2
                     .as_mut()
-                    .ok_or_else(|| "MOG2 背景模型未初始化".to_string())?;
+                    .ok_or_else(|| tr("msg.mog2_uninitialized"))?;
                 BackgroundSubtractorTrait::apply_def(model, gray, &mut raw)
-                    .map_err(|err| format!("MOG2 背景差分失败: {err}"))?;
+                    .map_err(|err| cv("MOG2 background subtraction", err))?;
             }
             SegmenterKind::Median => {
                 let background = self
                     .background
                     .as_ref()
-                    .ok_or_else(|| "中值背景未初始化".to_string())?;
+                    .ok_or_else(|| tr("msg.median_uninitialized"))?;
                 let mut diff = Mat::default();
                 core::absdiff(gray, background, &mut diff)
-                    .map_err(|err| format!("背景差分失败: {err}"))?;
+                    .map_err(|err| cv("background subtraction", err))?;
                 imgproc::threshold(&diff, &mut raw, 25.0, 255.0, imgproc::THRESH_BINARY)
-                    .map_err(|err| format!("阈值化失败: {err}"))?;
+                    .map_err(|err| cv("threshold", err))?;
             }
         }
 
         let mut binary = Mat::default();
         imgproc::threshold(&raw, &mut binary, 127.0, 255.0, imgproc::THRESH_BINARY)
-            .map_err(|err| format!("二值化失败: {err}"))?;
+            .map_err(|err| cv("binarize", err))?;
         let mut cleaned = Mat::default();
         imgproc::morphology_ex(
             &binary,
@@ -134,7 +136,7 @@ impl Segmenter {
             core::BORDER_CONSTANT,
             Scalar::all(0.0),
         )
-        .map_err(|err| format!("闭运算失败: {err}"))?;
+        .map_err(|err| cv("close", err))?;
         let mut filtered = Mat::default();
         imgproc::morphology_ex(
             &cleaned,
@@ -146,7 +148,7 @@ impl Segmenter {
             core::BORDER_CONSTANT,
             Scalar::all(0.0),
         )
-        .map_err(|err| format!("开运算失败: {err}"))?;
+        .map_err(|err| cv("open", err))?;
         Ok(filtered)
     }
 }

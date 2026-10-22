@@ -5,6 +5,8 @@
 //! aligned masks are fused, and the resulting contour is never updated while
 //! tracking.
 
+use crate::i18n::tr;
+use crate::i18n::cv;
 use opencv::core::{self, Mat, Point, Point2f, Scalar, Size, Vector};
 use opencv::imgproc;
 use opencv::prelude::*;
@@ -84,9 +86,9 @@ pub(crate) fn collect_window_poses(
     let reference_index = window_masks
         .iter()
         .position(|(frame, _)| *frame == reference_frame)
-        .ok_or_else(|| "参考帧不在形状学习窗口内".to_string())?;
+        .ok_or_else(|| tr("msg.reference_outside_window"))?;
     let reference = collect_reference(&window_masks[reference_index].1, roi, center)?
-        .ok_or_else(|| "参考帧附近没有可用的运动轮廓".to_string())?;
+        .ok_or_else(|| tr("msg.no_contour_near_reference"))?;
     let mut poses: Vec<(usize, ContourInfo)> =
         vec![(reference_frame, reference.clone())];
 
@@ -161,13 +163,13 @@ impl ShapeModel {
             }
         }
         if masks.len() < 5 {
-            return Err("形状学习窗口内可用轮廓太少，请换一个参考帧".into());
+            return Err(tr("msg.too_few_contours"));
         }
         let mut counts = vec![0u16; (CANON_SIZE * CANON_SIZE) as usize];
         for mask in &masks {
             let bytes = mask
                 .data_typed::<u8>()
-                .map_err(|err| format!("读取归一化掩膜失败: {err}"))?;
+                .map_err(|err| cv("read normalized mask", err))?;
             for (index, value) in bytes.iter().enumerate() {
                 if *value > 0 {
                     counts[index] = counts[index].saturating_add(1);
@@ -180,17 +182,17 @@ impl ShapeModel {
             .map(|count| if *count >= needed { 255 } else { 0 })
             .collect();
         let flat = Mat::from_slice(&fused_bytes)
-            .map_err(|err| format!("融合掩膜失败: {err}"))?;
+            .map_err(|err| cv("blend mask", err))?;
         let mut fused = flat
             .reshape(1, CANON_SIZE)
-            .map_err(|err| format!("融合掩膜 reshape 失败: {err}"))?
+            .map_err(|err| cv("blend mask reshape", err))?
             .clone_pointee();
         let kernel = imgproc::get_structuring_element(
             imgproc::MORPH_ELLIPSE,
             Size::new(3, 3),
             Point::new(-1, -1),
         )
-        .map_err(|err| format!("形态学核失败: {err}"))?;
+        .map_err(|err| cv("morphology kernel", err))?;
         let mut cleaned = Mat::default();
         imgproc::morphology_ex(
             &fused,
@@ -202,7 +204,7 @@ impl ShapeModel {
             core::BORDER_CONSTANT,
             Scalar::all(0.0),
         )
-        .map_err(|err| format!("融合掩膜闭运算失败: {err}"))?;
+        .map_err(|err| cv("blend mask close", err))?;
         fused = cleaned;
 
         let mut contours = Vector::<Mat>::new();
@@ -213,11 +215,11 @@ impl ShapeModel {
             imgproc::CHAIN_APPROX_NONE,
             Point::new(0, 0),
         )
-        .map_err(|err| format!("固定轮廓查找失败: {err}"))?;
+        .map_err(|err| cv("find fixed contour", err))?;
         let mut best: Option<(f64, Mat)> = None;
         for contour in contours.iter() {
             let area = imgproc::contour_area(&contour, false)
-                .map_err(|err| format!("固定轮廓面积失败: {err}"))?;
+                .map_err(|err| cv("fixed contour area", err))?;
             if area < 20.0 {
                 continue;
             }
@@ -226,16 +228,16 @@ impl ShapeModel {
             }
         }
         let Some((_, contour)) = best else {
-            return Err("固定掩膜融合后没有有效轮廓".into());
+            return Err(tr("msg.no_valid_contour"));
         };
         let points = contour
             .data_typed::<Point>()
-            .map_err(|err| format!("固定轮廓读取失败: {err}"))?
+            .map_err(|err| cv("read fixed contour", err))?
             .iter()
             .map(|point| Point2f::new(point.x as f32, point.y as f32))
             .collect::<Vec<_>>();
         if points.len() < 3 {
-            return Err("固定掩膜轮廓点太少".into());
+            return Err(tr("msg.too_few_contour_points"));
         }
         let normalized = points
             .iter()
@@ -424,7 +426,7 @@ impl ShapeModel {
             core::CV_8UC1,
             Scalar::all(0.0),
         )
-        .map_err(|err| format!("候选掩膜失败: {err}"))?;
+        .map_err(|err| cv("candidate mask", err))?;
         let candidate_poly: Vector<Point> = candidate
             .points
             .iter()
@@ -444,7 +446,7 @@ impl ShapeModel {
             0,
             Point::new(0, 0),
         )
-        .map_err(|err| format!("候选轮廓填充失败: {err}"))?;
+        .map_err(|err| cv("fill candidate contour", err))?;
 
         let mut model_mask = Mat::new_rows_cols_with_default(
             local.height,
@@ -452,7 +454,7 @@ impl ShapeModel {
             core::CV_8UC1,
             Scalar::all(0.0),
         )
-        .map_err(|err| format!("模型掩膜失败: {err}"))?;
+        .map_err(|err| cv("model mask", err))?;
         let model_poly: Vector<Point> = transformed
             .iter()
             .map(|point| {
@@ -471,7 +473,7 @@ impl ShapeModel {
             0,
             Point::new(0, 0),
         )
-        .map_err(|err| format!("模型轮廓填充失败: {err}"))?;
+        .map_err(|err| cv("fill model contour", err))?;
 
         let mut intersection = Mat::default();
         core::bitwise_and(
@@ -480,14 +482,14 @@ impl ShapeModel {
             &mut intersection,
             &core::no_array(),
         )
-        .map_err(|err| format!("掩膜交集失败: {err}"))?;
+        .map_err(|err| cv("mask intersection", err))?;
         let mut union = Mat::default();
         core::bitwise_or(&candidate_mask, &model_mask, &mut union, &core::no_array())
-            .map_err(|err| format!("掩膜并集失败: {err}"))?;
+            .map_err(|err| cv("mask union", err))?;
         let intersection = core::count_non_zero(&intersection)
-            .map_err(|err| format!("掩膜交集计数失败: {err}"))?;
+            .map_err(|err| cv("count mask intersection", err))?;
         let union =
-            core::count_non_zero(&union).map_err(|err| format!("掩膜并集计数失败: {err}"))?;
+            core::count_non_zero(&union).map_err(|err| cv("count mask union", err))?;
         Ok(if union > 0 {
             intersection as f32 / union as f32
         } else {
@@ -536,7 +538,7 @@ fn rasterize(points: &[Point2f]) -> Result<Mat, String> {
         core::CV_8UC1,
         Scalar::all(0.0),
     )
-    .map_err(|err| format!("归一化掩膜失败: {err}"))?;
+    .map_err(|err| cv("normalize mask", err))?;
     let polygon: Vector<Point> = points
         .iter()
         .map(|point| Point::new(point.x.round() as i32, point.y.round() as i32))
@@ -550,7 +552,7 @@ fn rasterize(points: &[Point2f]) -> Result<Mat, String> {
         0,
         Point::new(0, 0),
     )
-    .map_err(|err| format!("归一化轮廓填充失败: {err}"))?;
+    .map_err(|err| cv("fill normalized contour", err))?;
     Ok(mask)
 }
 
@@ -572,13 +574,13 @@ mod tests {
 fn mask_iou(a: &Mat, b: &Mat) -> Result<f32, String> {
     let mut intersection = Mat::default();
     core::bitwise_and(a, b, &mut intersection, &core::no_array())
-        .map_err(|err| format!("掩膜交集失败: {err}"))?;
+        .map_err(|err| cv("mask intersection", err))?;
     let mut union = Mat::default();
     core::bitwise_or(a, b, &mut union, &core::no_array())
-        .map_err(|err| format!("掩膜并集失败: {err}"))?;
+        .map_err(|err| cv("mask union", err))?;
     let intersection =
-        core::count_non_zero(&intersection).map_err(|err| format!("交集计数失败: {err}"))?;
-    let union = core::count_non_zero(&union).map_err(|err| format!("并集计数失败: {err}"))?;
+        core::count_non_zero(&intersection).map_err(|err| cv("count intersection", err))?;
+    let union = core::count_non_zero(&union).map_err(|err| cv("count union", err))?;
     Ok(if union > 0 {
         intersection as f32 / union as f32
     } else {

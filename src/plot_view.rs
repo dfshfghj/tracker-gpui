@@ -3,11 +3,12 @@ use std::rc::Rc;
 
 use gpui_kit::*;
 
+use crate::i18n::tr;
 use crate::*;
 
 pub(crate) struct PlotViewData {
     name: String,
-    kind: &'static str,
+    kind: String,
     configs: Vec<PlotConfig>,
     series: Vec<PlotSeries>,
     shared_x: Option<(f64, f64)>,
@@ -27,7 +28,7 @@ pub(crate) fn plot_sidebar(state: Rc<RefCell<State>>, cx: &mut Context<Probe>) -
                 .w_full()
                 .text_xs()
                 .text_color(c(0x5f6f88))
-                .child("绘图仅用于质点轨道")
+                .child(tr("plot.point_only"))
                 .into_any_element();
         };
         let frame_times = st
@@ -95,10 +96,10 @@ pub(crate) fn plot_sidebar(state: Rc<RefCell<State>>, cx: &mut Context<Probe>) -
                         .text_color(c(0x7d8ca6))
                         .child(format!("{} · {}", prepared.name, prepared.kind)),
                 )
-                .child(plot_chip(0, "1 图".into(), count == 1, cx, |this, _cx| {
+                .child(plot_chip(0, tr("plot.one"), count == 1, cx, |this, _cx| {
                     this.state.borrow_mut().set_plot_count(1);
                 }))
-                .child(plot_chip(1, "2 图".into(), count == 2, cx, |this, _cx| {
+                .child(plot_chip(1, tr("plot.two"), count == 2, cx, |this, _cx| {
                     this.state.borrow_mut().set_plot_count(2);
                 })),
         )
@@ -109,7 +110,7 @@ pub(crate) fn plot_sidebar(state: Rc<RefCell<State>>, cx: &mut Context<Probe>) -
                 .gap_3()
                 .child(check_item(
                     300,
-                    "点",
+                    tr("plot.points"),
                     prepared.points_on,
                     true,
                     cx,
@@ -119,7 +120,7 @@ pub(crate) fn plot_sidebar(state: Rc<RefCell<State>>, cx: &mut Context<Probe>) -
                 ))
                 .child(check_item(
                     301,
-                    "线",
+                    tr("plot.lines"),
                     prepared.lines_on,
                     true,
                     cx,
@@ -129,7 +130,7 @@ pub(crate) fn plot_sidebar(state: Rc<RefCell<State>>, cx: &mut Context<Probe>) -
                 ))
                 .child(check_item(
                     302,
-                    "同步 X",
+                    tr("plot.sync_x"),
                     prepared.linked,
                     true,
                     cx,
@@ -259,7 +260,7 @@ pub(crate) fn plot_chart(
                     div()
                         .text_xs()
                         .text_color(c(0x5f6f88))
-                        .child(format!("{} 点", points.len())),
+                        .child(t!("plot.point_count", n = points.len()).to_string()),
                 ),
         )
         .child(
@@ -453,7 +454,7 @@ pub(crate) fn paint_plot(
         plot_text(
             window,
             cx,
-            "暂无数据",
+            tr("plot.no_data"),
             f32::from(bounds.origin.x) + left + plot_width * 0.5 - 22.0,
             f32::from(bounds.origin.y) + top + plot_height * 0.5 - 6.0,
             11.0,

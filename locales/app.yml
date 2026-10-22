@@ -1,0 +1,1266 @@
+_version: 2
+
+# Locale file for tracker-gpui. Keys are stable identifiers; English is the
+# source text and the fallback locale. Add a new locale by adding its column to
+# every leaf (see `src/i18n.rs::SUPPORTED`).
+
+app:
+  untitled_project:
+    en: Untitled project
+    zh-CN: 未命名项目
+  invalid_name:
+    en: (invalid)
+    zh-CN: （无效）
+
+menu:
+  check:
+    en: "[%{mark}] %{label}"
+    zh-CN: "[%{mark}] %{label}"
+  bar:
+    file:
+      en: File
+      zh-CN: 文件
+    edit:
+      en: Edit
+      zh-CN: 编辑
+    view:
+      en: View
+      zh-CN: 视图
+    tracks:
+      en: Tracks
+      zh-CN: 轨道
+    coords:
+      en: Coords
+      zh-CN: 坐标
+    help:
+      en: Help
+      zh-CN: 帮助
+  item:
+    new_project:
+      en: New Project
+      zh-CN: 新建项目
+    open_project:
+      en: Open Project…
+      zh-CN: 打开项目…
+    save:
+      en: Save
+      zh-CN: 保存
+    save_as:
+      en: Save As…
+      zh-CN: 另存为…
+    open_folder:
+      en: Open Folder…
+      zh-CN: 打开文件夹…
+    close_tab:
+      en: Close Tab
+      zh-CN: 关闭当前标签
+    undo:
+      en: Undo  Ctrl+Z
+      zh-CN: 撤销  Ctrl+Z
+    redo:
+      en: Redo  Ctrl+Shift+Z
+      zh-CN: 重做  Ctrl+Shift+Z
+    fit:
+      en: Fit to Window  F
+      zh-CN: 适应窗口  F
+    theme_auto:
+      en: Follow System Theme
+      zh-CN: 跟随系统主题
+    theme_light:
+      en: Light Mode
+      zh-CN: 浅色模式
+    theme_dark:
+      en: Dark Mode
+      zh-CN: 深色模式
+    language_auto:
+      en: System Language
+      zh-CN: 跟随系统语言
+    axes:
+      en: Show Coordinate Axes
+      zh-CN: 显示坐标系
+    trail:
+      en: Show Trail
+      zh-CN: 显示轨迹
+    trail_length:
+      en: "Trail Length: %{label}"
+      zh-CN: "轨迹长度: %{label}"
+    labels:
+      en: Show Frame Numbers
+      zh-CN: 显示步号
+    trace:
+      en: Show Trail Line
+      zh-CN: 显示轨迹线
+    workspace:
+      en: Show Workspace
+      zh-CN: 显示工作区
+    inspector:
+      en: Show Inspector
+      zh-CN: 显示属性栏
+    new_point_track:
+      en: New Point Mass
+      zh-CN: 新建质点轨道
+    new_tape:
+      en: New Measuring Tape
+      zh-CN: 新建测量尺
+    new_protractor:
+      en: New Protractor
+      zh-CN: 新建量角器
+    new_circle:
+      en: New Circle Fit
+      zh-CN: 新建圆拟合
+    delete_track:
+      en: Delete Current Track
+      zh-CN: 删除当前轨道
+    clear_track:
+      en: Clear Current Track Data
+      zh-CN: 清空当前轨道数据
+    current_track:
+      en: "Current Track: %{name}"
+      zh-CN: "当前轨道: %{name}"
+    visible:
+      en: Visible
+      zh-CN: 显示
+    locked:
+      en: Locked
+      zh-CN: 锁定
+    footprint:
+      en: "Footprint: %{label}"
+      zh-CN: "标记形状: %{label}"
+    step:
+      en: "Step: %{n}  (%{sign})"
+      zh-CN: "步长: %{n}  (%{sign})"
+    autostep:
+      en: "Autostep (advance %{n} frames after marking)"
+      zh-CN: "自动步进（标记后前进 %{n} 帧）"
+    delete_point:
+      en: Delete Mark at Current Frame
+      zh-CN: 删除当前帧标记
+    autodetect:
+      en: Auto-detect Moving Objects
+      zh-CN: 自动检测运动目标
+    aruco:
+      en: ArUco Rigid Body Marking
+      zh-CN: ArUco 刚体打标
+    markerless:
+      en: Markerless Rigid Body (drag a box)
+      zh-CN: 无标记刚体（框选）
+    markerless_hint:
+      en: Drag a box on the video to track a markerless rigid body
+      zh-CN: 在视频上拖拽框选无标记刚体
+    motion_contour:
+      en: Motion Contour Rigid Body (drag a box)
+      zh-CN: 运动轮廓刚体（框选）
+    motion_hint:
+      en: Drag a box on the video around a solid, well-defined object
+      zh-CN: 在视频上拖拽框选纯色/清晰边界刚体
+    pure_mask:
+      en: Pure Motion Mask (do not learn a fixed shape)
+      zh-CN: 纯运动掩膜（不学习固定形状）
+    stop_tracking:
+      en: Stop AutoTracker
+      zh-CN: 停止自动跟踪
+    new_stick:
+      en: New Calibration Stick
+      zh-CN: 新建定标尺
+    fixed_cal:
+      en: Fix Calibration (all frames)
+      zh-CN: 固定标定（所有帧）
+    lock_coords:
+      en: Lock Coordinates
+      zh-CN: 锁定坐标
+    fixed_origin:
+      en: Fixed Origin
+      zh-CN: 固定原点
+    fixed_angle:
+      en: Fixed Angle
+      zh-CN: 固定角度
+    align_stick:
+      en: Align to Calibration Stick
+      zh-CN: 对齐到标定尺
+    unify_frame:
+      en: Use Current Frame Coordinates Everywhere
+      zh-CN: 统一使用当前帧坐标
+    reset_coords:
+      en: Reset Coordinates
+      zh-CN: 重置坐标
+    reset_cal:
+      en: Reset Calibration
+      zh-CN: 重置标定
+    help_guide:
+      en: Operations Guide
+      zh-CN: 操作说明
+    about:
+      en: About Tracker GPUI
+      zh-CN: 关于 Tracker GPUI
+  trail:
+    all:
+      en: All
+      zh-CN: 全部
+    short:
+      en: Short (4 frames)
+      zh-CN: 短 (4 帧)
+    long:
+      en: Long (15 frames)
+      zh-CN: 长 (15 帧)
+    frames:
+      en: "%{n} frames"
+      zh-CN: "%{n} 帧"
+  tool:
+    set_origin:
+      en: Set Coordinate Origin
+      zh-CN: 设定坐标原点
+    origin_offset:
+      en: Origin Offset
+      zh-CN: 原点偏移
+    show_all_sticks:
+      en: Show All Calibration Sticks
+      zh-CN: 显示全部定标尺
+    tape:
+      en: Measuring Tape
+      zh-CN: 测量尺
+    protractor:
+      en: Protractor
+      zh-CN: 量角器
+    circle:
+      en: Circle Fit
+      zh-CN: 圆拟合
+    new_point:
+      en: New Point Mass
+      zh-CN: 新建质点
+    no_point_tracks:
+      en: No point mass tracks
+      zh-CN: 无质点轨道
+  status:
+    point_detect:
+      en: "Point detection: %{method} (left-click to run)"
+      zh-CN: "质点检测：%{method}（左键运行）"
+    rigid_detect:
+      en: "Rigid detection: %{method} (left-click to run)"
+      zh-CN: "刚体检测：%{method}（左键运行）"
+    motion_mask_on:
+      en: Motion contour will use the pure motion mask
+      zh-CN: 运动轮廓将使用纯运动掩膜
+    motion_mask_off:
+      en: Motion contour will use fixed shape matching
+      zh-CN: 运动轮廓将使用固定形状匹配
+    need_seed:
+      en: (mark a start point on this frame first)
+      zh-CN: （先在当前帧标记起点）
+  track_points:
+    en: "%{name} · %{points} pts"
+    zh-CN: "%{name} · %{points} 点"
+
+detect:
+  point:
+    auto_tracker:
+      en: AutoTracker
+      zh-CN: AutoTracker
+    auto_detect:
+      en: Auto-detect Target
+      zh-CN: 自动检测目标
+    tooltip_auto_tracker:
+      en: "Point detection: AutoTracker (right-click to switch)"
+      zh-CN: "质点检测：AutoTracker（右键切换方法）"
+    tooltip_auto_detect:
+      en: "Point detection: Auto-detect Target (right-click to switch)"
+      zh-CN: "质点检测：自动检测目标（右键切换方法）"
+  rigid:
+    aruco:
+      en: ArUco Rigid Body
+      zh-CN: ArUco 刚体
+    markerless:
+      en: Markerless Rigid Body
+      zh-CN: 无标记刚体
+    motion_contour:
+      en: Motion Contour
+      zh-CN: 运动轮廓
+    tooltip_aruco:
+      en: "Rigid detection: ArUco (right-click to switch)"
+      zh-CN: "刚体检测：ArUco（右键切换方法）"
+    tooltip_markerless:
+      en: "Rigid detection: markerless (right-click to switch)"
+      zh-CN: "刚体检测：无标记刚体（右键切换方法）"
+    tooltip_motion_contour:
+      en: "Rigid detection: motion contour (right-click to switch)"
+      zh-CN: "刚体检测：运动轮廓（右键切换方法）"
+
+tool:
+  move:
+    en: Move / Select
+    zh-CN: 移动/选择
+  origin:
+    en: Set Coordinate Origin
+    zh-CN: 设定坐标原点
+  origin_offset:
+    en: Origin Offset
+    zh-CN: 原点偏移
+  tape:
+    en: Measuring Tape
+    zh-CN: 测量尺
+  protractor:
+    en: Protractor
+    zh-CN: 量角器
+  circle:
+    en: Circle Fit
+    zh-CN: 圆拟合
+
+footprint:
+  diamond:
+    en: Diamond
+    zh-CN: 菱形
+  triangle:
+    en: Triangle
+    zh-CN: 三角形
+  square:
+    en: Square
+    zh-CN: 方框
+  circle:
+    en: Circle
+    zh-CN: 圆
+  crosshair:
+    en: Crosshair
+    zh-CN: 十字
+
+mask_mode:
+  fixed:
+    en: Fixed Shape
+    zh-CN: 固定形状
+  pure:
+    en: Pure Motion Mask
+    zh-CN: 纯运动掩膜
+
+track:
+  kind:
+    rigid:
+      en: Rigid body
+      zh-CN: 刚体
+    point:
+      en: Point mass
+      zh-CN: 质点
+
+status:
+  table_copied:
+    en: Table copied
+    zh-CN: 数据表已复制
+  roi_too_small:
+    en: Selection too small, drag again
+    zh-CN: 框选区域太小，请重新框选
+  indexing:
+    en: "Indexing %{name}… %{pct}%"
+    zh-CN: "正在索引 %{name}… %{pct}%"
+  need_point_track:
+    en: Create or select a point mass track first
+    zh-CN: 请先新建或选择一个质点轨道
+  stop_tracking_first:
+    en: Stop AutoTracker first
+    zh-CN: 请先停止自动跟踪
+  tracking:
+    en: "Tracking · frame %{frame} · %{points} pts · confidence %{confidence}"
+    zh-CN: "自动跟踪中 · 第 %{frame} 帧 · %{points} 点 · 置信度 %{confidence}"
+
+toolbar:
+  autostep_on:
+    en: "Autostep: on (A)"
+    zh-CN: 自动步进：开 (A)
+  autostep_off:
+    en: "Autostep: off (A)"
+    zh-CN: 自动步进：关 (A)
+  move:
+    en: Move / Select (Esc)
+    zh-CN: 移动 / 选择（Esc）
+  point_track:
+    en: Point mass track (click to switch)
+    zh-CN: 质点轨道（点击切换）
+  new_stick:
+    en: "New calibration stick (right-click: origin tools)"
+    zh-CN: 新建定标尺（右键：原点工具）
+  measure:
+    en: Measure (right-click to choose)
+    zh-CN: 测量（右键选择）
+  axes:
+    en: Show coordinate axes
+    zh-CN: 显示坐标系
+  refresh:
+    en: Refresh workspace
+    zh-CN: 刷新工作区
+  no_videos:
+    en: No video files
+    zh-CN: 没有视频文件
+  collapse_workspace:
+    en: Collapse workspace
+    zh-CN: 收起工作区
+  no_folder:
+    en: No folder selected
+    zh-CN: 未选择目录
+
+inspector:
+  title:
+    en: Inspector
+    zh-CN: 检查器
+  tab_plot:
+    en: Plot + Data
+    zh-CN: 绘图+数据
+  collapse:
+    en: Collapse inspector
+    zh-CN: 收起属性栏
+  properties:
+    en: Properties
+    zh-CN: 属性
+  file:
+    en: File
+    zh-CN: 文件
+  size:
+    en: Size
+    zh-CN: 尺寸
+  frame:
+    en: Frame
+    zh-CN: 帧
+  time:
+    en: Time
+    zh-CN: 时间
+  tracks:
+    en: Tracks
+    zh-CN: 轨道
+  no_tracks:
+    en: No tracks
+    zh-CN: 无轨道
+  object_properties:
+    en: Object Properties
+    zh-CN: 对象属性
+  plot:
+    en: Plot
+    zh-CN: 绘图
+  data_table:
+    en: Data Table
+    zh-CN: 数据表
+  columns:
+    en: "Columns:"
+    zh-CN: "列:"
+  rows:
+    en: "%{rows} rows · %{selected} selected"
+    zh-CN: 共 %{rows} 行 · 已选 %{selected} 行
+  select_all:
+    en: Select All
+    zh-CN: 全选
+  clear:
+    en: Clear
+    zh-CN: 清除
+  copy:
+    en: Copy
+    zh-CN: 复制
+  table_hint:
+    en: Click a row to select; copy copies selected rows, or all when nothing is selected
+    zh-CN: 点击行选择；复制选中行，未选择时复制全部
+  no_points:
+    en: This track has no data points
+    zh-CN: 当前轨道没有数据点
+  plot_only_point:
+    en: Plots and the data table are only available for point mass tracks
+    zh-CN: 绘图与数据表仅用于质点轨道
+  no_video:
+    en: No video open
+    zh-CN: 未打开视频
+
+object:
+  object:
+    en: Object
+    zh-CN: 对象
+  axes:
+    en: Coordinate axes
+    zh-CN: 坐标轴
+  origin_x:
+    en: Origin x
+    zh-CN: 原点 x
+  origin_y:
+    en: Origin y
+    zh-CN: 原点 y
+  angle:
+    en: Angle (°)
+    zh-CN: 角度 (°)
+  scale:
+    en: Scale
+    zh-CN: 比例
+  visible:
+    en: Visible
+    zh-CN: 显示
+  locked:
+    en: Locked
+    zh-CN: 锁定
+  fixed_origin:
+    en: Fixed origin (all frames)
+    zh-CN: 固定原点（所有帧）
+  fixed_angle:
+    en: Fixed angle (all frames)
+    zh-CN: 固定角度（所有帧）
+  stick:
+    en: "Calibration stick %{n}"
+    zh-CN: 定标尺 %{n}
+  length:
+    en: Length
+    zh-CN: 长度
+  unit_decimals:
+    en: Units / decimals…
+    zh-CN: 单位/小数位…
+  rigid_angle:
+    en: Rigid body angle
+    zh-CN: 刚体角度
+  feature_size:
+    en: Feature size
+    zh-CN: 特征尺寸
+  outline_points:
+    en: Outline points
+    zh-CN: 轮廓点
+  velocity:
+    en: Velocity
+    zh-CN: 速度
+  acceleration:
+    en: Acceleration
+    zh-CN: 加速度
+  markerless_orb:
+    en: Markerless (ORB)
+    zh-CN: 无标记（ORB）
+  motion_contour:
+    en: "Motion contour · %{n}"
+    zh-CN: 运动轮廓 · %{n}
+  markers:
+    en: "%{kind} · %{n} markers"
+    zh-CN: "%{kind} · %{n} 个标记"
+  tracking:
+    en: Tracking
+    zh-CN: 跟踪
+  inliers:
+    en: Inliers
+    zh-CN: 内点
+  match_degree:
+    en: Match score
+    zh-CN: 匹配度
+  visible_markers:
+    en: Visible markers
+    zh-CN: 可见标记
+
+measurement:
+  tape:
+    en: Measuring Tape
+    zh-CN: 测量尺
+  protractor:
+    en: Protractor
+    zh-CN: 量角器
+  circle:
+    en: Circle Fit
+    zh-CN: 圆拟合
+
+rail:
+  expand_workspace:
+    en: Expand workspace
+    zh-CN: 展开工作区
+  expand_inspector:
+    en: Expand inspector
+    zh-CN: 展开属性栏
+
+tree:
+  indexing:
+    en: Indexing
+    zh-CN: 索引中
+
+transport:
+  first:
+    en: First frame
+    zh-CN: 第一帧
+  back10:
+    en: Back 10 frames
+    zh-CN: 后退 10 帧
+  back1:
+    en: Back 1 frame
+    zh-CN: 后退 1 帧
+  play:
+    en: Play
+    zh-CN: 播放
+  pause:
+    en: Pause
+    zh-CN: 暂停
+  fwd1:
+    en: Forward 1 frame
+    zh-CN: 前进 1 帧
+  fwd10:
+    en: Forward 10 frames
+    zh-CN: 前进 10 帧
+  last:
+    en: Last frame
+    zh-CN: 最后一帧
+
+plot:
+  point_only:
+    en: Plots are only available for point mass tracks
+    zh-CN: 绘图仅用于质点轨道
+  one:
+    en: 1 plot
+    zh-CN: 1 图
+  two:
+    en: 2 plots
+    zh-CN: 2 图
+  points:
+    en: Points
+    zh-CN: 点
+  lines:
+    en: Lines
+    zh-CN: 线
+  sync_x:
+    en: Sync X
+    zh-CN: 同步 X
+  point_count:
+    en: "%{n} pts"
+    zh-CN: "%{n} 点"
+  no_data:
+    en: No data
+    zh-CN: 暂无数据
+  var:
+    frame:
+      en: Frame
+      zh-CN: 帧
+    length:
+      en: Length
+      zh-CN: 长度
+    angle:
+      en: Angle
+      zh-CN: 角度
+    arm1:
+      en: Arm 1
+      zh-CN: 臂1
+    arm2:
+      en: Arm 2
+      zh-CN: 臂2
+    radius:
+      en: Radius
+      zh-CN: 半径
+    center_x:
+      en: Center x
+      zh-CN: 圆心 x
+    center_y:
+      en: Center y
+      zh-CN: 圆心 y
+
+measure:
+  length:
+    en: Length
+    zh-CN: 长度
+  angle:
+    en: Angle
+    zh-CN: 角度
+  arm:
+    en: Arm length
+    zh-CN: 臂长
+  center:
+    en: Center
+    zh-CN: 圆心
+  radius:
+    en: Radius
+    zh-CN: 半径
+
+field:
+  mask_width:
+    en: Mask width
+    zh-CN: 掩膜宽
+  mask_height:
+    en: Mask height
+    zh-CN: 掩膜高
+  search_area:
+    en: Search area
+    zh-CN: 搜索范围
+  evolve:
+    en: Evolve percentage
+    zh-CN: 演化百分比
+  tether:
+    en: Tether percentage
+    zh-CN: 束缚百分比
+  good_match:
+    en: Auto-mark threshold
+    zh-CN: 自动标记阈值
+
+tracker:
+  backend_osp:
+    en: OSP template match
+    zh-CN: OSP 模板匹配
+  end_finished:
+    en: Tracking finished
+    zh-CN: 跟踪完成
+  end_lost:
+    en: Match lost
+    zh-CN: 匹配丢失
+  end_stopped:
+    en: Stopped
+    zh-CN: 已停止
+
+msg:
+  cv_failed:
+    en: "%{op} failed: %{err}"
+    zh-CN: "%{op} 失败: %{err}"
+  no_frames:
+    en: The video has no usable frames
+    zh-CN: 视频没有可用帧
+  no_stable_target:
+    en: No stable moving target was detected
+    zh-CN: 未检测到稳定的运动目标
+  no_aruco:
+    en: No ArUco marker detected
+    zh-CN: 未检测到 ArUco 标记
+  too_few_rigid_points:
+    en: Too few rigid body track points
+    zh-CN: 刚体轨迹点太少
+  reference_outside_window:
+    en: The reference frame is outside the shape learning window
+    zh-CN: 参考帧不在形状学习窗口内
+  no_contour_near_reference:
+    en: No motion contour available near the reference frame
+    zh-CN: 参考帧附近没有可用的运动轮廓
+  too_few_contours:
+    en: Too few usable contours in the learning window; pick another reference frame
+    zh-CN: 形状学习窗口内可用轮廓太少，请换一个参考帧
+  no_valid_contour:
+    en: The blended fixed mask has no valid contour
+    zh-CN: 固定掩膜融合后没有有效轮廓
+  too_few_contour_points:
+    en: The fixed mask contour has too few points
+    zh-CN: 固定掩膜轮廓点太少
+  knn_uninitialized:
+    en: KNN background model is not initialized
+    zh-CN: KNN 背景模型未初始化
+  mog2_uninitialized:
+    en: MOG2 background model is not initialized
+    zh-CN: MOG2 背景模型未初始化
+  median_uninitialized:
+    en: Median background is not initialized
+    zh-CN: 中值背景未初始化
+  no_pose_in_window:
+    en: No usable pose in the shape learning window
+    zh-CN: 形状学习窗口内没有可用位姿
+  motion_contour_lost:
+    en: The motion contour could not be tracked continuously
+    zh-CN: 运动轮廓未能持续跟踪
+  reference_unreadable:
+    en: Cannot read the reference frame
+    zh-CN: 无法读取参考帧
+  too_few_features:
+    en: Too few features in the selection; choose a textured body or use an ArUco marker
+    zh-CN: 框选区域内特征点太少，请选择有纹理的刚体，或改用 ArUco 标记
+  orb_lost:
+    en: ORB could not keep tracking the rigid body
+    zh-CN: ORB 未能持续跟踪刚体
+  bg:
+    median:
+      en: Median
+      zh-CN: 中值
+  track_deleted:
+    en: Track deleted
+    zh-CN: 轨道已删除
+  track_locked_status:
+    en: Track is locked
+    zh-CN: 轨道已锁定
+  point_deleted:
+    en: "Deleted the mark at frame %{frame}"
+    zh-CN: "已删除第 %{frame} 帧标记"
+  err:
+    tracking_running:
+      en: AutoTracker is already running
+      zh-CN: 自动跟踪已在运行
+    no_video:
+      en: No video open
+      zh-CN: 未打开视频
+    no_track:
+      en: No track to follow
+      zh-CN: 没有可跟踪的轨道
+    point_mass_only:
+      en: AutoTracker only supports point mass tracks
+      zh-CN: 自动跟踪仅支持质点轨道
+    rigid_not_supported:
+      en: AutoTracker does not support rigid body tracks
+      zh-CN: 刚体轨道不支持 AutoTracker
+    track_locked:
+      en: The current track is locked
+      zh-CN: 当前轨道已锁定
+    need_seed:
+      en: Mark a tracking start point on this frame first
+      zh-CN: 请先在当前帧标记跟踪起点
+    last_frame:
+      en: Already at the last frame
+      zh-CN: 当前已是最后一帧
+    length_positive:
+      en: Length must be greater than 0
+      zh-CN: 长度必须大于 0
+    stick_missing:
+      en: Calibration stick not found
+      zh-CN: 标尺不存在
+    stick_zero:
+      en: Stick length is zero, cannot compute the scale
+      zh-CN: 标尺长度为零，无法计算比例
+    must_be_int:
+      en: "%{label} must be an integer"
+      zh-CN: "%{label}必须是整数"
+    must_be_number:
+      en: "%{label} must be a number"
+      zh-CN: "%{label}必须是数字"
+    mask_size:
+      en: Mask width/height must be between 3 and 99 pixels
+      zh-CN: 掩膜宽/高必须在 3–99 像素之间
+    search_area:
+      en: Search area must be between 3 and 240 pixels
+      zh-CN: 搜索范围必须在 3–240 像素之间
+    evolve_tether:
+      en: Evolve/tether percentages must be between 0 and 95
+      zh-CN: 演化/束缚百分比必须在 0–95 之间
+    good_match:
+      en: Auto-mark threshold must be between 0 and 10
+      zh-CN: 自动标记阈值必须在 0–10 之间
+    no_keyframe:
+      en: This track has no keyframes yet
+      zh-CN: 当前轨道尚无关键帧
+    coords_locked:
+      en: Coordinates are locked
+      zh-CN: 坐标已锁定
+    enter_number:
+      en: Enter a number
+      zh-CN: 请输入数字
+    enter_finite:
+      en: Enter a finite number
+      zh-CN: 请输入有限数值
+    angle_number:
+      en: Angle must be a number
+      zh-CN: 角度必须是数字
+    angle_finite:
+      en: Angle must be a finite number
+      zh-CN: 角度必须是有限数值
+    length_number:
+      en: Length must be a number
+      zh-CN: 长度必须是数字
+    decimals_int:
+      en: Decimals must be an integer
+      zh-CN: 小数位数必须是整数
+    decimals_max:
+      en: At most 6 decimal places
+      zh-CN: 小数位数最多 6
+  tracker:
+    search_next:
+      en: "%{backend} searching the next frame…"
+      zh-CN: "%{backend} 搜索下一帧…"
+    running:
+      en: "%{backend} tracking…"
+      zh-CN: "%{backend} 自动跟踪中…"
+    stopped:
+      en: "Tracking stopped · %{points} pts · reached frame %{frame}"
+      zh-CN: "自动跟踪已停止 · %{points} 点 · 到第 %{frame} 帧"
+    paused:
+      en: "AutoTracker paused · frame %{frame} · %{points} pts"
+      zh-CN: "AutoTracker 已暂停 · 第 %{frame} 帧 · %{points} 点"
+    searching:
+      en: AutoTracker searching…
+      zh-CN: AutoTracker 搜索中…
+    finished:
+      en: Tracking thread finished
+      zh-CN: 跟踪线程已结束
+    summary:
+      en: "%{end} · %{points} pts · frame %{from}→%{to}"
+      zh-CN: "%{end} · %{points} 点 · 第 %{from}→%{to} 帧"
+    confidence:
+      en: " · confidence %{value}"
+      zh-CN: " · 置信度 %{value}"
+    back_to:
+      en: "AutoTracker: back to frame %{frame}"
+      zh-CN: "AutoTracker：回到第 %{frame} 帧"
+    keyframe:
+      en: "AutoTracker: keyframe %{frame}"
+      zh-CN: "AutoTracker：关键帧 %{frame}"
+
+  open_video_first:
+    en: Open a video first
+    zh-CN: 请先打开视频
+  tracker_window_failed:
+    en: "Failed to open the AutoTracker window: %{err}"
+    zh-CN: "打开 AutoTracker 窗口失败: %{err}"
+  auto_detect:
+    running:
+      en: Detecting moving objects…
+      zh-CN: 自动检测运动目标…
+    discarded:
+      en: Detection finished, but the video changed; results discarded
+      zh-CN: 自动检测完成，但已切换视频，结果已丢弃
+    done:
+      en: "Detection finished: %{count} pts (%{candidates} candidates)"
+      zh-CN: "自动检测完成：%{count} 个点（%{candidates} 条候选）"
+    failed:
+      en: "Detection failed: %{err}"
+      zh-CN: "自动检测失败：%{err}"
+  aruco:
+    running:
+      en: Marking ArUco rigid body…
+      zh-CN: ArUco 刚体打标…
+    discarded:
+      en: Marking finished, but the video changed; results discarded
+      zh-CN: 刚体打标完成，但已切换视频，结果已丢弃
+    done:
+      en: "Marking finished: %{count} pts (%{markers} markers, %{dict})"
+      zh-CN: "刚体打标完成：%{count} 个点（%{markers} 个标记，%{dict}）"
+    failed:
+      en: "ArUco marking failed: %{err}"
+      zh-CN: "刚体打标失败：%{err}"
+  orb:
+    running:
+      en: Tracking ORB rigid body…
+      zh-CN: ORB 刚体跟踪…
+    discarded:
+      en: ORB tracking finished, but the video changed; results discarded
+      zh-CN: ORB 跟踪完成，但已切换视频，结果已丢弃
+    done:
+      en: "ORB tracking finished: %{count} pts (%{frames} frames posed)"
+      zh-CN: "ORB 刚体跟踪完成：%{count} 个点（%{frames} 帧有位姿）"
+    failed:
+      en: "ORB tracking failed: %{err}"
+      zh-CN: "ORB 刚体跟踪失败：%{err}"
+  motion:
+    running_pure:
+      en: Tracking with pure motion mask…
+      zh-CN: 纯运动掩膜跟踪…
+    running_fixed:
+      en: Tracking fixed-shape motion contour…
+      zh-CN: 固定形状运动轮廓跟踪…
+    discarded:
+      en: Contour tracking finished, but the video changed; results discarded
+      zh-CN: 轮廓跟踪完成，但已切换视频，结果已丢弃
+    done:
+      en: "%{label} tracking finished: %{count} pts (%{frames} frames posed)"
+      zh-CN: "%{label}跟踪完成：%{count} 个点（%{frames} 帧有位姿）"
+    failed:
+      en: "Motion contour tracking failed: %{err}"
+      zh-CN: "运动轮廓跟踪失败：%{err}"
+
+
+dialog:
+  open_project_title:
+    en: Open Tracker GPUI Project
+    zh-CN: 打开 Tracker GPUI 项目
+  choose_folder_title:
+    en: Choose Video Folder
+    zh-CN: 选择视频目录
+
+track_name:
+  auto_detect:
+    en: Auto-detect
+    zh-CN: 自动检测
+  rigid_detect:
+    en: Rigid detection
+    zh-CN: 刚体检测
+  markerless:
+    en: Markerless rigid body
+    zh-CN: 无标记刚体
+  motion_contour:
+    en: Motion contour
+    zh-CN: 运动轮廓
+  motion_pure:
+    en: Pure motion mask
+    zh-CN: 纯运动掩膜
+  motion_fixed:
+    en: Fixed shape contour
+    zh-CN: 固定形状轮廓
+
+cal:
+  title:
+    en: Calibration
+    zh-CN: 标定设置
+  description:
+    en: "Edit the length of stick %{index} / %{count}. Sticks only control scale and angle, never the origin."
+    zh-CN: "编辑标尺 %{index} / %{count} 的长度。标尺只控制比例和角度，不改变坐标原点。"
+  length:
+    en: Length
+    zh-CN: 长度
+  unit:
+    en: Unit
+    zh-CN: 单位
+  decimals:
+    en: Decimals
+    zh-CN: 小数位
+  locked:
+    en: Coordinates are locked; changes will not apply.
+    zh-CN: 坐标已锁定，修改不会生效。
+  hint:
+    en: Tab switches fields · Enter applies · Esc cancels
+    zh-CN: Tab 切换字段 · Enter 应用 · Esc 取消
+
+dlg:
+  apply:
+    en: Apply
+    zh-CN: 应用
+  cancel:
+    en: Cancel
+    zh-CN: 取消
+  close:
+    en: Close
+    zh-CN: 关闭
+  save:
+    en: Save
+    zh-CN: 保存
+  discard:
+    en: Discard
+    zh-CN: 放弃
+  save_and_new:
+    en: Save and New
+    zh-CN: 保存并新建
+  discard_and_new:
+    en: Discard and New
+    zh-CN: 放弃并新建
+  save_and_open:
+    en: Save and Open
+    zh-CN: 保存并打开
+  discard_and_open:
+    en: Discard and Open
+    zh-CN: 放弃并打开
+  new_project:
+    en: New Project
+    zh-CN: 新建项目
+  open_project:
+    en: Open Project
+    zh-CN: 打开项目
+  unsaved_title:
+    en: Unsaved Changes
+    zh-CN: 未保存的修改
+  unsaved_body:
+    en: "\u201c%{name}\u201d has unsaved changes."
+    zh-CN: "\u201c%{name}\u201d 有未保存的修改。"
+  unsaved_prompt:
+    en: The current project has unsaved changes. Save it first?
+    zh-CN: 当前项目有未保存的修改，是否先保存？
+  about_title:
+    en: About Tracker GPUI
+    zh-CN: 关于 Tracker GPUI
+  error:
+    en: Error
+    zh-CN: 错误
+  video:
+    en: Video
+    zh-CN: 视频
+
+help:
+  title:
+    en: Operations Guide
+    zh-CN: 操作说明
+  play:
+    en: Play / Pause
+    zh-CN: 播放 / 暂停
+  play_keys:
+    en: Space
+    zh-CN: 空格
+  frame:
+    en: Step Frames
+    zh-CN: 逐帧
+  frame_keys:
+    en: "← / →, Shift for 10 frames"
+    zh-CN: "← / →，Shift 为 10 帧"
+  move:
+    en: Move / Mark
+    zh-CN: 移动 / 打点
+  move_keys:
+    en: Toolbar move button or T/Esc clears the tool; Shift+click places a point with any tool
+    zh-CN: 工具栏移动按钮或 T/Esc 清除工具选择；任意工具下 Shift+单击放置点
+  select:
+    en: Select Object
+    zh-CN: 选择对象
+  select_keys:
+    en: Click an axis, stick or measuring tool to select; drag to move, drag handles to reshape
+    zh-CN: 点击坐标轴/标尺/测量尺选中；拖动平移，端点调整
+  object_props:
+    en: Object Properties
+    zh-CN: 对象属性
+  object_props_keys:
+    en: Booleans use checkboxes; click origin/angle/length to edit, Enter commits, Esc cancels
+    zh-CN: 布尔项用复选框；原点/角度/长度点击编辑，Enter 提交，Esc 取消
+  calib:
+    en: Calibration / Measuring
+    zh-CN: 标定 / 测量
+  calib_keys:
+    en: Pick a tool in the toolbar; click the ruler button to add a calibration stick
+    zh-CN: 工具栏选择工具；点击工具栏标尺按钮新建定标尺
+  point_track:
+    en: Point Mass Track
+    zh-CN: 质点轨道
+  point_track_keys:
+    en: The toolbar point button lists all point mass tracks; click one to mark into it
+    zh-CN: 工具栏质点按钮列出所有质点轨道，点击切换当前打点目标
+  autostep:
+    en: Autostep
+    zh-CN: 自动步进
+  autostep_keys:
+    en: Press A to toggle; advances by the step size after each new point
+    zh-CN: A 切换；新建点后前进 step size 帧
+  trail:
+    en: Trail
+    zh-CN: 轨迹显示
+  trail_keys:
+    en: Shows the last 15 frames with frame numbers; hold Shift for the current frame only; View toggles trail/labels/line
+    zh-CN: 默认最近 15 帧长轨迹并显示帧号；按住 Shift 只显示当前帧；View 可切换轨迹/步号/轨迹线
+  autotracker:
+    en: AutoTracker
+    zh-CN: AutoTracker
+  autotracker_keys:
+    en: Opens a separate window kept above the main one; keyframes show a crosshair and solid mask, other frames show dotted matching, the search box is dashed
+    zh-CN: 工具栏或 Tracks 菜单打开独立窗口并置顶于主窗口；关键帧显示目标十字/实线掩膜，非关键帧显示点线匹配，搜索框为虚线
+  correction:
+    en: Tracking Correction
+    zh-CN: 跟踪修正
+  correction_keys:
+    en: After pausing or stopping, Shift+click on the current frame to correct, then search again to continue; keyframes accumulate
+    zh-CN: 暂停或停止后在当前帧 Shift+单击修正，再点搜索从该帧继续；可累计多个关键帧
+  tabs:
+    en: Inspector Tabs
+    zh-CN: 右侧页签
+  tabs_keys:
+    en: The top switches between object properties and plot + data; plots and tables are for point mass tracks only
+    zh-CN: 顶部切换“对象属性”和“绘图+数据”；绘图/数据仅用于质点轨道
+  plot:
+    en: Plot
+    zh-CN: 绘图
+  plot_keys:
+    en: Always auto-scaled; clicking a data point jumps to its frame; axis labels sit next to the axes, no "vs" title
+    zh-CN: 始终自动缩放，点数据点跳帧；轴标签在轴旁，无 vs 标题
+  table:
+    en: Data Table
+    zh-CN: 数据表
+  table_keys:
+    en: Column checkboxes default to t/x/y; click a row to select, then select all/clear/copy or Ctrl+C
+    zh-CN: 列复选框默认 t/x/y；点击行选择，全选/清除/复制或 Ctrl+C
+  delete:
+    en: Delete
+    zh-CN: 删除对象
+  delete_keys:
+    en: Delete / Backspace; with nothing selected it deletes the current frame point; axes cannot be deleted
+    zh-CN: Delete / Backspace；未选中对象时删除当前帧点，坐标轴不可删
+  undo:
+    en: Undo / Redo
+    zh-CN: 撤销 / 重做
+  undo_keys:
+    en: Ctrl+Z / Ctrl+Shift+Z
+    zh-CN: Ctrl+Z / Ctrl+Shift+Z
+  zoom:
+    en: Zoom / Pan
+    zh-CN: 缩放 / 平移
+  zoom_keys:
+    en: Wheel zooms; Ctrl/Alt+wheel pans; F fits the window
+    zh-CN: 滚轮缩放；Ctrl/Alt+滚轮平移；F 适应窗口
+  tabbar:
+    en: Tabs
+    zh-CN: 标签页
+  tabbar_keys:
+    en: Click a video on the left to open it, × closes it; the wheel scrolls the tab bar
+    zh-CN: 左侧点击视频打开，× 关闭；标签栏滚轮左右滚动
+  sidebar:
+    en: Side Panels
+    zh-CN: 侧栏
+  sidebar_keys:
+    en: The title-bar arrow collapses a panel, the thin rail expands it; the View menu toggles both
+    zh-CN: 标题栏箭头收起；折叠窄条展开；View 菜单可切换左右侧栏
+
+tracker_ui:
+  title:
+    en: "AutoTracker: %{name} position"
+    zh-CN: "AutoTracker: %{name} 位置"
+  header:
+    en: "Frame %{frame} / %{count} · %{keyframes} keyframes"
+    zh-CN: "帧 %{frame} / %{count} · 关键帧 %{keyframes}"
+  resume:
+    en: Resume
+    zh-CN: 继续
+  pause:
+    en: Pause
+    zh-CN: 暂停
+  search:
+    en: Search
+    zh-CN: 搜索
+  back:
+    en: Back
+    zh-CN: 上一步
+  search_next:
+    en: Search Next Frame
+    zh-CN: 搜索下一帧
+  policy:
+    en: "%{search} · %{stop}"
+    zh-CN: "%{search} 搜索 · %{stop}"
+  info:
+    en: "%{state} · frame %{frame} · %{points} pts · match score %{score}"
+    zh-CN: "%{state} · 第 %{frame} 帧 · %{points} 点 · 匹配标准 %{score}"
+  paused:
+    en: Paused
+    zh-CN: 已暂停
+  searching:
+    en: Searching
+    zh-CN: 搜索中
+  frame:
+    en: "Frame %{frame}:"
+    zh-CN: "帧 %{frame}:"
+  template:
+    en: Template
+    zh-CN: 模板
+  matched:
+    en: Match
+    zh-CN: 匹配
+  match_hint:
+    en: "Frame %{frame} (match score %{score}): points matching the template are marked automatically."
+    zh-CN: "帧 %{frame}（匹配标准 %{score}）: 与模板匹配的点会被自动标记。"
+  template_label:
+    en: "Template:"
+    zh-CN: "模板:"
+  evolve:
+    en: "Evolve %"
+    zh-CN: "演化 %"
+  auto_mark:
+    en: Auto-mark
+    zh-CN: 自动标记
+  shape:
+    en: "Shape:"
+    zh-CN: "形状:"
+  ellipse:
+    en: Ellipse
+    zh-CN: 椭圆
+  rect:
+    en: Rectangle
+    zh-CN: 矩形
+  width:
+    en: Width
+    zh-CN: 宽
+  height:
+    en: Height
+    zh-CN: 高
+  search_label:
+    en: "Search:"
+    zh-CN: "搜索:"
+  only_x:
+    en: X axis only
+    zh-CN: 仅 X 轴
+  target:
+    en: "Target:"
+    zh-CN: "目标:"
+  trail:
+    en: Trail
+    zh-CN: 轨迹
+  points:
+    en: Points
+    zh-CN: 点
+  position:
+    en: Position
+    zh-CN: 位置
+  hint:
+    en: Tab switches fields · Enter applies · Esc closes; click Search after changing parameters
+    zh-CN: Tab 切换字段 · Enter 应用参数 · Esc 关闭；修改跟踪参数后点“搜索”生效
+  help:
+    en: Help
+    zh-CN: 帮助
+  show_keyframe:
+    en: Show Keyframe
+    zh-CN: 显示关键帧
+  delete:
+    en: Delete
+    zh-CN: 删除
+  copied:
+    en: Match data copied
+    zh-CN: 匹配数据已复制
+  close:
+    en: Close
+    zh-CN: 关闭
+  no_track:
+    en: No track
+    zh-CN: 无轨道

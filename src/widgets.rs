@@ -7,11 +7,12 @@ use gpui_kit::*;
 use crate::*;
 
 pub(crate) fn section_header(
-    label: &'static str,
+    label: impl Into<SharedString>,
     section: SideSection,
     state: Rc<RefCell<State>>,
     cx: &mut Context<Probe>,
 ) -> AnyElement {
+    let label = label.into();
     let collapsed = state.borrow().collapsed.contains(&section);
     div()
         .id(("side-section", section as usize))
@@ -45,13 +46,13 @@ pub(crate) fn section_header(
         .into_any_element()
 }
 
-pub(crate) fn kv(label: &str, value: String) -> impl IntoElement {
+pub(crate) fn kv(label: impl Into<SharedString>, value: String) -> impl IntoElement {
     div()
         .flex()
         .justify_between()
         .text_xs()
         .text_color(c(0x7d8ca6))
-        .child(label.to_string())
+        .child(label.into())
         .child(div().text_color(c(0xdbe6f5)).child(value))
 }
 
@@ -66,12 +67,13 @@ pub(crate) fn format_confidence(value: f32) -> String {
 pub(crate) fn plot_text(
     window: &mut Window,
     cx: &mut App,
-    text: &str,
+    text: impl Into<SharedString>,
     x: f32,
     y: f32,
     size: f32,
     color: Rgba,
 ) {
+    let text = text.into();
     let run = TextRun {
         len: text.len(),
         font: Font::default(),
@@ -123,12 +125,13 @@ pub(crate) fn plot_chip(
 
 pub(crate) fn check_item(
     id: usize,
-    label: &'static str,
+    label: impl Into<SharedString>,
     checked: bool,
     enabled: bool,
     cx: &mut Context<Probe>,
     action: impl Fn(&mut Probe, &mut Context<Probe>) + 'static,
 ) -> AnyElement {
+    let label = label.into();
     div()
         .id(("check-item", id))
         .flex()
@@ -170,12 +173,13 @@ pub(crate) fn check_item(
 pub(crate) fn editable_value(
     state: Rc<RefCell<State>>,
     cx: &mut Context<Probe>,
-    label: &'static str,
+    label: impl Into<SharedString>,
     target: InlineTarget,
     value: String,
     suffix: String,
     id: usize,
 ) -> AnyElement {
+    let label = label.into();
     let editing = state
         .borrow()
         .inline_edit
@@ -201,7 +205,7 @@ pub(crate) fn editable_value(
                     .items_center()
                     .text_xs()
                     .text_color(c(0x7d8ca6))
-                    .child(label)
+                    .child(label.clone())
                     .child(
                         div()
                             .px_1()

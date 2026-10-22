@@ -1,6 +1,7 @@
 use gpui_kit::*;
 
 use crate::track::Footprint;
+use crate::i18n::tr;
 use crate::*;
 
 pub(crate) fn stroke_path(points: &[(f32, f32)], width: f32) -> Option<Path<Pixels>> {
@@ -361,7 +362,7 @@ pub(crate) fn measurement_summary(
     coords: &ImageCoordSystem,
     unit: &str,
     decimals: usize,
-) -> Option<Vec<(&'static str, String)>> {
+) -> Option<Vec<(String, String)>> {
     let kind = track.measurement_kind()?;
     let handles = track.handles(frame);
     let mut rows = Vec::new();
@@ -376,10 +377,10 @@ pub(crate) fn measurement_summary(
             let length = ((b.0 - a.0).powi(2) + (b.1 - a.1).powi(2)).sqrt();
             let angle = (b.1 - a.1).atan2(b.0 - a.0).to_degrees();
             rows.push((
-                "长度",
+                tr("measure.length"),
                 format!("{:.*} {} ({pixel_length:.0} px)", decimals, length, unit),
             ));
-            rows.push(("角度", format!("{angle:.1}°")));
+            rows.push((tr("measure.angle"), format!("{angle:.1}°")));
         }
         MeasurementKind::Protractor => {
             if handles.len() < 3 {
@@ -400,9 +401,9 @@ pub(crate) fn measurement_summary(
                 .clamp(-1.0, 1.0)
                 .acos()
                 .to_degrees();
-            rows.push(("角度", format!("{angle:.1}°")));
+            rows.push((tr("measure.angle"), format!("{angle:.1}°")));
             rows.push((
-                "臂长",
+                tr("measure.arm"),
                 format!(
                     "{:.*} / {:.*} {}",
                     decimals, length1, decimals, length2, unit
@@ -420,14 +421,14 @@ pub(crate) fn measurement_summary(
                 + (world_edge.1 - world_center.1).powi(2))
             .sqrt();
             rows.push((
-                "圆心",
+                tr("measure.center"),
                 format!(
                     "({:.*}, {:.*}) {}",
                     decimals, world_center.0, decimals, world_center.1, unit
                 ),
             ));
             rows.push((
-                "半径",
+                tr("measure.radius"),
                 format!("{:.*} {} ({pixel_radius:.0} px)", decimals, radius, unit),
             ));
         }

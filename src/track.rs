@@ -1,4 +1,5 @@
 use crate::coords::ImageCoordSystem;
+use rust_i18n::t;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -18,14 +19,15 @@ impl Default for Footprint {
 }
 
 impl Footprint {
-    pub fn label(self) -> &'static str {
+    pub fn label(self) -> String {
         match self {
-            Self::Diamond => "菱形",
-            Self::Triangle => "三角形",
-            Self::Square => "方框",
-            Self::Circle => "圆",
-            Self::Crosshair => "十字",
+            Self::Diamond => t!("footprint.diamond"),
+            Self::Triangle => t!("footprint.triangle"),
+            Self::Square => t!("footprint.square"),
+            Self::Circle => t!("footprint.circle"),
+            Self::Crosshair => t!("footprint.crosshair"),
         }
+        .to_string()
     }
 
     pub fn next(self) -> Self {
@@ -65,11 +67,12 @@ pub enum RigidMaskMode {
 }
 
 impl RigidMaskMode {
-    pub fn label(self) -> &'static str {
+    pub fn label(self) -> String {
         match self {
-            Self::FixedShape => "固定形状",
-            Self::PureMotion => "纯运动掩膜",
+            Self::FixedShape => t!("mask_mode.fixed"),
+            Self::PureMotion => t!("mask_mode.pure"),
         }
+        .to_string()
     }
 
     pub fn tag(self) -> &'static str {
@@ -118,12 +121,13 @@ pub enum MeasurementKind {
 }
 
 impl MeasurementKind {
-    pub fn label(self) -> &'static str {
+    pub fn label(self) -> String {
         match self {
-            Self::Tape => "测量尺",
-            Self::Protractor => "量角器",
-            Self::Circle => "圆拟合",
+            Self::Tape => t!("measurement.tape"),
+            Self::Protractor => t!("measurement.protractor"),
+            Self::Circle => t!("measurement.circle"),
         }
+        .to_string()
     }
 
     pub fn tag(self) -> &'static str {
@@ -344,12 +348,12 @@ impl Track {
         }
     }
 
-    pub fn kind_label(&self) -> &'static str {
+    pub fn kind_label(&self) -> String {
         if self.is_rigid_body() {
-            return "刚体";
+            return t!("track.kind.rigid").to_string();
         }
         match &self.kind {
-            TrackKind::PointMass(_) => "质点",
+            TrackKind::PointMass(_) => t!("track.kind.point").to_string(),
             TrackKind::Measurement(track) => track.kind.label(),
         }
     }
@@ -716,7 +720,8 @@ mod tests {
         track.set_rigid_step(2, 10.0, 20.0, 0.5, 100.0, 2);
         assert!(track.is_point_mass());
         assert!(track.is_rigid_body());
-        assert_eq!(track.kind_label(), "刚体");
+        // Label text is localized, so compare against the active locale.
+        assert_eq!(track.kind_label(), t!("track.kind.rigid"));
         assert_eq!(track.point_at(2), Some((10.0, 20.0)));
         let step = track.rigid_step(2).unwrap();
         assert!((step.angle - 0.5).abs() < 1e-6);
