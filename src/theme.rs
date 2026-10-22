@@ -41,8 +41,8 @@ pub(crate) fn set_theme_mode(mode: ThemeMode) {
     );
 }
 
-/// Keep gpui-component widgets (notably TitleBar and its window controls)
-/// in the same light/dark mode as the app's own palette.
+/// Project the app palette into both component and Base theme tokens. Changing
+/// only the mode would leave native controls on the library's neutral palette.
 pub(crate) fn sync_component_theme(cx: &mut App) {
     let mode = if light_theme() {
         gpui_component::ThemeMode::Light
@@ -50,6 +50,39 @@ pub(crate) fn sync_component_theme(cx: &mut App) {
         gpui_component::ThemeMode::Dark
     };
     gpui_component::Theme::change(mode, None, cx);
+    gpui_component::Theme::update(cx, |theme| {
+        apply_component_palette(theme, light_theme());
+    });
+}
+
+fn apply_component_palette(theme: &mut gpui_component::Theme, light: bool) {
+    let color = |value| Hsla::from(palette_color(value, light));
+    let colors = &mut theme.colors;
+    colors.background = color(0x070b12);
+    colors.foreground = color(0xdbe6f5);
+    colors.border = color(0x1d2a3d);
+    colors.input = color(0x1d2a3d);
+    colors.ring = color(0x4dabf7);
+    colors.popover = color(0x152238);
+    colors.popover_foreground = color(0xdbe6f5);
+    colors.muted = color(0x111a29);
+    colors.muted_foreground = color(0x7d8ca6);
+    colors.accent = color(0x1b2b45);
+    colors.accent_foreground = color(0x8ecbff);
+    colors.primary = color(0x4dabf7);
+    colors.primary_foreground = color(0x06101c);
+    colors.secondary = color(0x111a29);
+    colors.secondary_foreground = color(0x9fb2cc);
+    colors.button = color(0x111a29);
+    colors.button_foreground = color(0x9fb2cc);
+    colors.button_hover = color(0x152238);
+    colors.button_active = color(0x1b2b45);
+    colors.list = color(0x152238);
+    colors.list_hover = color(0x1d2a3d);
+    colors.list_active = color(0x1b2b45);
+    colors.list_active_border = color(0x4dabf7);
+    colors.selection = color(0x4dabf7).alpha(0.25);
+    theme.radius = px(4.);
 }
 
 #[cfg(target_os = "windows")]
@@ -117,7 +150,11 @@ pub(crate) fn system_prefers_light() -> bool {
 
 /// Theme-aware replacement for `c(0x…)`. Unknown colors keep their value.
 pub(crate) fn c(value: u32) -> Rgba {
-    if !light_theme() {
+    palette_color(value, light_theme())
+}
+
+fn palette_color(value: u32, light: bool) -> Rgba {
+    if !light {
         return rgb(value);
     }
     let mapped = match value {
@@ -152,4 +189,30 @@ pub(crate) fn c(value: u32) -> Rgba {
         other => other,
     };
     rgb(mapped)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{apply_component_palette, palette_color};
+    use ::gpui;
+    use gpui_kit::{Hsla, TestAppContext};
+
+    #[gpui::test]
+    fn component_and_base_controls_share_the_app_palette(cx: &mut TestAppContext) {
+        cx.update(|cx| {
+            for light in [false, true] {
+                cx.set_global(gpui_component::Theme::default());
+                gpui_component::Theme::update(cx, |theme| apply_component_palette(theme, light));
+                let native = gpui_component::Theme::global(cx);
+                let color = |value| Hsla::from(palette_color(value, light));
+                assert_eq!(native.colors.popover, color(0x152238));
+                assert_eq!(native.colors.input, color(0x1d2a3d));
+                assert_eq!(native.colors.foreground, color(0xdbe6f5));
+                assert_eq!(native.tokens.list_hover.color, color(0x1d2a3d));
+                assert_eq!(native.tokens.list_active.color, color(0x1b2b45));
+                let base = gpui_kit::base::Theme::global(cx);
+                assert_eq!(base.tokens, native.semantic_tokens());
+            }
+        });
+    }
 }

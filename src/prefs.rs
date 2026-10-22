@@ -21,6 +21,31 @@ pub struct Preferences {
     /// `None` / `"auto"` follows the OS locale; otherwise a BCP-47 tag.
     #[serde(default)]
     pub locale: Option<String>,
+    /// Which modifier turns a wheel/two-finger scroll into zoom or sideways pan.
+    #[serde(default)]
+    pub wheel: WheelBindings,
+}
+
+/// Modifier per wheel action. Values are the canonical names used by
+/// [`crate::wheel`]: `"none"` or a canonical `ctrl+alt+shift` subset.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct WheelBindings {
+    /// Plain wheel / touchpad vertical scroll.
+    pub vertical: String,
+    /// Modifier for horizontal panning.
+    pub horizontal: String,
+    /// Modifier for zooming around the cursor.
+    pub zoom: String,
+}
+
+impl Default for WheelBindings {
+    fn default() -> Self {
+        Self {
+            vertical: "none".to_string(),
+            horizontal: "ctrl".to_string(),
+            zoom: "alt".to_string(),
+        }
+    }
 }
 
 fn default_theme() -> String {

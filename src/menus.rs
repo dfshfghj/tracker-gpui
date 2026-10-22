@@ -618,23 +618,9 @@ pub(crate) fn menu_popup(state: Rc<RefCell<State>>, cx: &mut Context<Probe>) -> 
                 this.state.borrow_mut().fit();
             }));
             items.push(menu_separator());
-            let current_theme = theme_mode();
-            for (id, mode, label) in [
-                (40, ThemeMode::Auto, tr("menu.item.theme_auto")),
-                (41, ThemeMode::Light, tr("menu.item.theme_light")),
-                (42, ThemeMode::Dark, tr("menu.item.theme_dark")),
-            ] {
-                items.push(menu_item_dynamic(
-                    check(label, current_theme == mode),
-                    id,
-                    true,
-                    cx,
-                    move |this, cx| {
-                        this.state.borrow_mut().apply_theme_mode(mode);
-                        crate::theme::sync_component_theme(cx);
-                    },
-                ));
-            }
+            items.push(menu_item(tr("menu.item.settings"), true, cx, |this, cx| {
+                this.open_settings_window(cx);
+            }));
             items.push(menu_separator());
             let axes_visible = state.borrow().axes_visible;
             items.push(menu_item_dynamic(
@@ -729,20 +715,6 @@ pub(crate) fn menu_popup(state: Rc<RefCell<State>>, cx: &mut Context<Probe>) -> 
                     this.state.borrow_mut().right_open = !right_open;
                 },
             ));
-            items.push(menu_separator());
-            let current_pref = state.borrow().language_pref();
-            for (index, (value, label)) in crate::i18n::menu_entries().into_iter().enumerate() {
-                items.push(menu_item_dynamic(
-                    check(label, current_pref == value),
-                    60 + index,
-                    true,
-                    cx,
-                    move |this, cx| {
-                        this.state.borrow_mut().apply_language(value);
-                        cx.refresh_windows();
-                    },
-                ));
-            }
         }
         MenuId::Tracks => {
             let (

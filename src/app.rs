@@ -991,6 +991,8 @@ impl Probe {
             close_hook: false,
             pending_tracker_window: std::env::var_os("PROBE_TRACKER_DIALOG").is_some(),
             tracker_window: None,
+            pending_settings_window: std::env::var_os("PROBE_SETTINGS").is_some(),
+            settings_window: None,
             main_hwnd: None,
             owner_hwnd: None,
             owner_applied: false,
@@ -1012,6 +1014,8 @@ impl Probe {
             close_hook: false,
             pending_tracker_window: false,
             tracker_window: None,
+            pending_settings_window: false,
+            settings_window: None,
             main_hwnd: None,
             owner_hwnd,
             owner_applied: false,
@@ -1066,6 +1070,51 @@ impl Probe {
             }
             Err(err) => {
                 self.state.borrow_mut().status = Some(t!("msg.tracker_window_failed", err = err).to_string());
+            }
+        }
+        cx.notify();
+    }
+
+    pub(crate) fn open_settings_window(&mut self, cx: &mut Context<Self>) {
+        if let Some(handle) = self.settings_window {
+            let focused = handle
+                .update(cx, |_view, window, _cx| {
+                    window.activate_window();
+                })
+                .is_ok();
+            if focused {
+                cx.notify();
+                return;
+            }
+            self.settings_window = None;
+        }
+        let state = self.state.clone();
+        let options = WindowOptions {
+            window_bounds: Some(WindowBounds::Windowed(Bounds {
+                origin: point(px(200.), px(90.)),
+                size: size(px(720.), px(520.)),
+            })),
+            titlebar: Some(TitlebarOptions {
+                title: Some(tr("settings.title").into()),
+                appears_transparent: false,
+                traffic_light_position: None,
+            }),
+            focus: true,
+            show: true,
+            kind: WindowKind::Normal,
+            is_movable: true,
+            is_resizable: true,
+            ..Default::default()
+        };
+        match gpui_kit::open_window(options, cx, move |window, cx| {
+            cx.new(|cx| crate::settings::SettingsWindow::new(state.clone(), window, cx))
+        }) {
+            Ok((handle, _view)) => {
+                self.settings_window = Some(handle);
+            }
+            Err(err) => {
+                self.state.borrow_mut().status =
+                    Some(t!("msg.settings_window_failed", err = err).to_string());
             }
         }
         cx.notify();

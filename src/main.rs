@@ -66,12 +66,14 @@ mod orb_match;
 mod orb_track;
 mod plot_view;
 mod render;
+mod settings;
 #[cfg(feature = "vision")]
 mod rigid;
 mod state;
 mod theme;
 mod tracker_modal;
 mod widgets;
+mod wheel;
 mod workspace;
 
 use coords::{Calibration, CalibrationStep, ImageCoordSystem};
@@ -635,6 +637,8 @@ struct Probe {
     close_hook: bool,
     pending_tracker_window: bool,
     tracker_window: Option<AnyWindowHandle>,
+    pending_settings_window: bool,
+    settings_window: Option<AnyWindowHandle>,
     main_hwnd: Option<isize>,
     owner_hwnd: Option<isize>,
     owner_applied: bool,
@@ -655,6 +659,11 @@ fn main() {
         .with_assets(gpui_kit::assets::Assets)
         .run(move |cx| {
             gpui_kit::init(cx);
+            cx.bind_keys([KeyBinding::new(
+                "escape",
+                gpui_kit::base::actions::Cancel,
+                Some("Settings"),
+            )]);
             gpui_kit::open_window(
                 WindowOptions {
                     window_bounds: Some(WindowBounds::Windowed(Bounds {

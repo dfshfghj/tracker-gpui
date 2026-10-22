@@ -75,6 +75,9 @@ menu:
     language_auto:
       en: System Language
       zh-CN: 跟随系统语言
+    settings:
+      en: Settings…
+      zh-CN: 设置…
     axes:
       en: Show Coordinate Axes
       zh-CN: 显示坐标系
@@ -872,6 +875,9 @@ msg:
   open_video_first:
     en: Open a video first
     zh-CN: 请先打开视频
+  settings_window_failed:
+    en: "Failed to open the settings window: %{err}"
+    zh-CN: "打开设置窗口失败: %{err}"
   tracker_window_failed:
     en: "Failed to open the AutoTracker window: %{err}"
     zh-CN: "打开 AutoTracker 窗口失败: %{err}"
@@ -1264,3 +1270,94 @@ tracker_ui:
   no_track:
     en: No track
     zh-CN: 无轨道
+
+settings:
+  title:
+    en: Settings
+    zh-CN: 设置
+  appearance:
+    en: Appearance
+    zh-CN: 外观
+  theme:
+    en: Theme
+    zh-CN: 主题
+  theme_desc:
+    en: "Follow System re-checks the OS appearance every 5 seconds."
+    zh-CN: "跟随系统会每 5 秒重新检查一次系统外观。"
+  language:
+    en: Language
+    zh-CN: 语言
+  language_desc:
+    en: Interface language. Applies immediately to every window.
+    zh-CN: 界面语言，切换后立即应用到所有窗口。
+  mouse_wheel:
+    en: Mouse wheel
+    zh-CN: 鼠标滚轮
+  wheel:
+    vertical:
+      en: Scroll up / down
+      zh-CN: 上下滚动
+    vertical_desc:
+      en: Binding for vertical panning; touchpads retain both scroll axes.
+      zh-CN: 上下平移的滚轮绑定；触摸板会保留两个方向的位移。
+    horizontal:
+      en: Scroll sideways
+      zh-CN: 左右滚动
+    horizontal_desc:
+      en: Modifier for sideways panning. A mouse wheel has one axis, so its movement is reused.
+      zh-CN: 按住该修饰键时左右平移。鼠标滚轮只有一个轴，会借用它的位移。
+    zoom:
+      en: Zoom
+      zh-CN: 缩放
+    zoom_desc:
+      en: Modifier for zooming the canvas around the cursor.
+      zh-CN: 按住该修饰键时以光标为中心缩放画布。
+    hint:
+      en: "Click a binding to record it. Each action needs a different combination; unbound combinations leave the canvas unchanged."
+      zh-CN: "点击绑定即可录入。每项动作使用不同的组合，未绑定的组合不会改变画布。"
+    plain:
+      en: Wheel
+      zh-CN: 滚轮
+    binding:
+      en: "%{modifiers} + Wheel"
+      zh-CN: "%{modifiers} + 滚轮"
+    record_hint:
+      en: "Scroll here to save, with optional modifier keys. Click elsewhere to cancel."
+      zh-CN: "在此滚动保存，可按住修饰键。点击别处取消。"
+    conflict:
+      en: "Already assigned to: %{action}"
+      zh-CN: "该组合已用于：%{action}"
+    unsupported:
+      en: "Use Ctrl/Cmd, Alt/Option, Shift and the wheel; letter keys and other modifiers are not supported."
+      zh-CN: "请使用 Ctrl/Cmd、Alt/Option、Shift 与滚轮；不支持字母键或其他修饰键。"
+    reset:
+      en: Reset to defaults
+      zh-CN: 恢复默认
+  modifier:
+    none:
+      en: None
+      zh-CN: 无
+    ctrl:
+      en: Ctrl
+      zh-CN: Ctrl
+    cmd:
+      en: Cmd
+      zh-CN: Cmd
+    alt:
+      en: Alt
+      zh-CN: Alt
+    option:
+      en: Option
+      zh-CN: Option
+    shift:
+      en: Shift
+      zh-CN: Shift
+    ctrl_alt:
+      en: Ctrl+Alt
+      zh-CN: Ctrl+Alt
+    cmd_option:
+      en: Cmd+Option
+      zh-CN: Cmd+Option
+  saved_hint:
+    en: "Changes are saved immediately to %{path}"
+    zh-CN: "修改会立即保存到 %{path}"

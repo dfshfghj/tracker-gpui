@@ -23,6 +23,10 @@ impl Render for Probe {
             self.pending_tracker_window = false;
             self.open_tracker_window(cx);
         }
+        if self.pending_settings_window {
+            self.pending_settings_window = false;
+            self.open_settings_window(cx);
+        }
         let retired = {
             let mut st = self.state.borrow_mut();
             st.tick();
@@ -630,22 +634,32 @@ impl Render for Probe {
                     ScrollDelta::Pixels(p) => (f32::from(p.x), f32::from(p.y)),
                     ScrollDelta::Lines(p) => (p.x * 20.0, p.y * 20.0),
                 };
-                if ev.modifiers.control || ev.modifiers.alt {
-                    st.tx -= dx;
-                    st.ty -= dy;
-                    st.user_adjusted = true;
-                    drop(st);
-                    cx.notify();
-                    return;
+                match crate::wheel::action(&ev.modifiers, &st.prefs.wheel) {
+                    Some(crate::wheel::WheelAction::Zoom) => {
+                        // A mouse wheel only reports one axis; fall back to it.
+                        let delta = if dy.abs() > f32::EPSILON { dy } else { dx };
+                        let sx = f32::from(ev.position.x) - st.sx;
+                        let sy = f32::from(ev.position.y) - st.sy;
+                        let factor = (delta * crate::wheel::ZOOM_SPEED).exp();
+                        let new_scale = (st.scale * factor).clamp(0.05, 40.0);
+                        let k = new_scale / st.scale;
+                        st.tx = sx - (sx - st.tx) * k;
+                        st.ty = sy - (sy - st.ty) * k;
+                        st.scale = new_scale;
+                    }
+                    Some(crate::wheel::WheelAction::PanHorizontal) => {
+                        // Wheel-only mice put the movement in `dy`; scrolling up
+                        // moves the canvas to the right.
+                        let delta = if dx.abs() > f32::EPSILON { dx } else { dy };
+                        st.tx += delta * crate::wheel::PAN_SPEED;
+                    }
+                    Some(crate::wheel::WheelAction::PanVertical) => {
+                        // Touchpads report both axes, so honour them together.
+                        st.tx -= dx * crate::wheel::PAN_SPEED;
+                        st.ty -= dy * crate::wheel::PAN_SPEED;
+                    }
+                    None => return,
                 }
-                let sx = f32::from(ev.position.x) - st.sx;
-                let sy = f32::from(ev.position.y) - st.sy;
-                let factor = (dy * 0.0015).exp();
-                let new_scale = (st.scale * factor).clamp(0.05, 40.0);
-                let k = new_scale / st.scale;
-                st.tx = sx - (sx - st.tx) * k;
-                st.ty = sy - (sy - st.ty) * k;
-                st.scale = new_scale;
                 st.user_adjusted = true;
                 drop(st);
                 cx.notify();
