@@ -23,7 +23,7 @@ if (!(Test-Path $source)) {
     Expand-Archive -Path $archive -DestinationPath $root -Force
 }
 
-cmake -S $source -B $build -G "Visual Studio 17 2022" -A x64 `
+cmake -S $source -B $build -G Ninja `
     -DCMAKE_BUILD_TYPE=Release `
     -DCMAKE_INSTALL_PREFIX="$Prefix" `
     "-DBUILD_LIST=core,imgproc,imgcodecs,video,objdetect,calib3d,features2d,flann" `
@@ -63,7 +63,7 @@ cmake -S $source -B $build -G "Visual Studio 17 2022" -A x64 `
     -DOPENCV_GENERATE_PKGCONFIG=OFF
 if ($LASTEXITCODE -ne 0) { throw "OpenCV configure failed" }
 
-cmake --build $build --config Release --target install --parallel
+cmake --build $build --target install --parallel
 if ($LASTEXITCODE -ne 0) { throw "OpenCV build failed" }
 
 $licenseDir = Join-Path $Prefix "licenses\opencv"
