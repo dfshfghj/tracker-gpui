@@ -1,4 +1,3 @@
-use gpui_component::scroll::ScrollableElement;
 use gpui_kit::*;
 
 use crate::plot::PlotVar;
@@ -405,7 +404,6 @@ pub(crate) fn table_view(
         .min_w_0()
         .overflow_x_scroll()
         .track_scroll(horizontal)
-        .horizontal_scrollbar(horizontal)
         .flex()
         .flex_col()
         .track_focus(focus)
@@ -451,6 +449,7 @@ pub(crate) fn table_view(
         );
     let mut header = div()
         .flex()
+        .h(px(28.))
         .w_full()
         .min_w(min_width)
         .bg(c(0x111a29))
@@ -511,18 +510,44 @@ pub(crate) fn table_view(
     .min_h_0()
     .min_w(min_width)
     .track_scroll(scroll);
-    table
+    let table = table.child(
+        div()
+            .relative()
+            .flex()
+            .flex_col()
+            .flex_1()
+            .min_h_0()
+            .min_w(min_width)
+            .overflow_hidden()
+            .child(body),
+    );
+    // Both rails belong to the viewport, never to the horizontally moving
+    // table content. The vertical rail starts below the fixed-height header.
+    div()
+        .flex()
+        .flex_col()
+        .flex_1()
+        .min_w_0()
+        .min_h_0()
+        .overflow_hidden()
         .child(
             div()
-                .relative()
                 .flex()
-                .flex_col()
                 .flex_1()
+                .min_w_0()
                 .min_h_0()
-                .min_w(min_width)
-                .overflow_hidden()
-                .vertical_scrollbar(&scroll.0.borrow().base_handle)
-                .child(body),
+                .child(table)
+                .child(
+                    crate::scroll_area::vertical_rail(
+                        "table-vertical-scrollbar",
+                        &scroll.0.borrow().base_handle,
+                    )
+                    .mt(px(28.)),
+                ),
+        )
+        .child(
+            crate::scroll_area::horizontal_rail("table-horizontal-scrollbar", horizontal)
+                .mr(gpui_component::scroll::Scrollbar::width()),
         )
         .into_any_element()
 }

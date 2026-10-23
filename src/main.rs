@@ -15,6 +15,7 @@ use std::sync::Arc;
 use std::time::Instant;
 
 mod video;
+mod scroll_area;
 use video::{FrameData, VideoStream};
 
 use gpui_kit::*;

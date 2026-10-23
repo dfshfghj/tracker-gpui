@@ -1,4 +1,3 @@
-use gpui_component::scroll::ScrollableElement;
 use gpui_component::{TitleBar, TITLE_BAR_HEIGHT};
 use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::*;
@@ -1080,15 +1079,17 @@ impl Render for Probe {
                         })
                         .into_any_element()
                 } else {
-                    div()
-                        .flex()
-                        .flex_col()
-                        .gap_1()
-                        .flex_1()
-                        .min_h(px(0.))
-                        .overflow_y_scrollbar()
-                        .children(rows)
-                        .into_any_element()
+                    crate::scroll_area::vertical(
+                        "file-tree-scroll",
+                        div()
+                            .flex()
+                            .flex_col()
+                            .gap_1()
+                            .w_full()
+                            .flex_none()
+                            .children(rows),
+                    )
+                    .into_any_element()
                 };
 
                 let panel = div()

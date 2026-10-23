@@ -1,7 +1,6 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use gpui_component::scroll::ScrollableElement;
 use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::*;
 
@@ -454,16 +453,19 @@ pub(crate) fn plot_sidebar(
     let charts = if only.is_some() {
         charts.flex_1().min_h_0().into_any_element()
     } else {
-        div()
-            .id("analysis-charts-scroll")
-            .relative()
-            .flex_1()
-            .min_h_0()
-            .overflow_y_scroll()
-            .track_scroll(&scroll)
-            .vertical_scrollbar(&scroll)
-            .child(charts)
-            .into_any_element()
+        crate::scroll_area::vertical_frame(
+            "analysis-charts-scrollbar",
+            div()
+                .id("analysis-charts-scroll")
+                .relative()
+                .flex_1()
+                .min_h_0()
+                .overflow_y_scroll()
+                .track_scroll(&scroll)
+                .child(charts),
+            &scroll,
+        )
+        .into_any_element()
     };
     div()
         .w_full()

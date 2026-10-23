@@ -4,7 +4,6 @@ use crate::*;
 use gpui_component::{
     input::{InputEvent, InputState},
     resizable::{resizable_panel, v_resizable, ResizableState},
-    scroll::ScrollableElement,
 };
 use gpui_kit::prelude::FluentBuilder;
 use std::collections::HashSet;
@@ -496,17 +495,11 @@ impl Probe {
             .when_some(self.inspector.error.clone(), |tree, error| {
                 tree.child(div().text_xs().text_color(c(0xff9090)).child(error))
             })
-            .child(
-                div()
-                    .relative()
-                    .flex()
-                    .flex_col()
-                    .flex_1()
-                    .min_h_0()
-                    .overflow_hidden()
-                    .vertical_scrollbar(&self.inspector.scroll.0.borrow().base_handle)
-                    .child(list),
-            );
+            .child(crate::scroll_area::vertical_frame(
+                "object-tree-scrollbar",
+                list,
+                &self.inspector.scroll.0.borrow().base_handle,
+            ));
         let title = self
             .state
             .borrow()
@@ -514,9 +507,8 @@ impl Probe {
             .unwrap_or_default();
         let mut details = div()
             .id("selected-object-properties")
-            .size_full()
-            .min_h_0()
-            .overflow_y_scrollbar()
+            .w_full()
+            .flex_none()
             .flex()
             .flex_col()
             .gap_2()
@@ -578,7 +570,10 @@ impl Probe {
                 resizable_panel()
                     .size(px(350.))
                     .size_range(px(130.)..Pixels::MAX)
-                    .child(details),
+                    .child(crate::scroll_area::vertical(
+                        "selected-object-scroll",
+                        details,
+                    )),
             );
         div()
             .flex_1()
