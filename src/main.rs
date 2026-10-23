@@ -80,6 +80,7 @@ mod tracker_modal;
 mod widgets;
 mod wheel;
 mod workspace;
+mod inspector;
 
 use coords::{Calibration, CalibrationStep, ImageCoordSystem};
 use history::{EditSnapshot, UndoStack};
@@ -310,13 +311,6 @@ enum CalibrationField {
     Decimals,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Hash)]
-enum SideSection {
-    Properties,
-    Tracks,
-    Object,
-}
-
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum RightView {
     Inspector,
@@ -502,7 +496,6 @@ struct DocState {
     tracks: Vec<Track>,
     active: usize,
     next_track_id: u64,
-    collapsed: HashSet<SideSection>,
     plot: PlotState,
 
     coords: ImageCoordSystem,
@@ -639,6 +632,7 @@ struct Probe {
     focus: FocusHandle,
     table_focus: FocusHandle,
     variable_editor: Option<Entity<variable_editor::VariableEditor>>,
+    inspector: inspector::Inspector,
     analysis_role: Option<analysis::Pane>,
     analysis_windows: Rc<RefCell<analysis::PaneWindows>>,
     analysis_split: Option<Entity<gpui_component::resizable::ResizableState>>,

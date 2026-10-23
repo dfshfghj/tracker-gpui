@@ -44,6 +44,8 @@ impl FrameCoords {
 /// Mirrors OSP ImageCoordSystem: per-frame values with fixed/locked options.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct ImageCoordSystem {
+    #[serde(default)]
+    pub name: String,
     pub base: FrameCoords,
     #[serde(default)]
     pub frames: BTreeMap<usize, FrameCoords>,
@@ -64,6 +66,7 @@ fn default_true() -> bool {
 impl Default for ImageCoordSystem {
     fn default() -> Self {
         Self {
+            name: String::new(),
             base: FrameCoords::default(),
             frames: BTreeMap::new(),
             fixed_origin: true,
@@ -232,6 +235,8 @@ impl Default for CalibrationStep {
 /// but keep their own world lengths.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct ExtraStick {
+    #[serde(default)]
+    pub name: String,
     pub a: [f64; 2],
     pub b: [f64; 2],
     pub length: f64,
@@ -242,6 +247,8 @@ pub struct ExtraStick {
 /// Calibration stick. Step 0 is the fixed/default stick; later frames can override.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Calibration {
+    #[serde(default)]
+    pub name: String,
     #[serde(default)]
     pub steps: BTreeMap<usize, CalibrationStep>,
     #[serde(default)]
@@ -269,6 +276,7 @@ impl Default for Calibration {
         let mut steps = BTreeMap::new();
         steps.insert(0, CalibrationStep::default());
         Self {
+            name: String::new(),
             steps,
             extra_sticks: Vec::new(),
             primary_visible: true,
@@ -292,6 +300,7 @@ impl Calibration {
         let mut steps = BTreeMap::new();
         steps.insert(0, step);
         Self {
+            name: String::new(),
             steps,
             extra_sticks: Vec::new(),
             primary_visible: true,
@@ -421,6 +430,7 @@ impl Calibration {
                         world_b: [extra.length, 0.0],
                     },
                 );
+                self.name = extra.name;
                 self.primary_visible = extra.visible;
             } else {
                 self.primary_visible = false;
@@ -432,6 +442,7 @@ impl Calibration {
 
     pub fn add_extra_stick(&mut self, a: [f64; 2], b: [f64; 2], length: f64) {
         self.extra_sticks.push(ExtraStick {
+            name: String::new(),
             a,
             b,
             length: length.max(1e-9),

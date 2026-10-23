@@ -645,9 +645,6 @@ impl Probe {
                 let _ = this.update(cx, |_this, cx| {
                     let mut st = scripted.borrow_mut();
                     if st.video.is_some() {
-                        st.collapsed.insert(SideSection::Properties);
-                        st.collapsed.insert(SideSection::Tracks);
-                        st.collapsed.insert(SideSection::Object);
                         _this.analysis_maximized = Some(crate::analysis::Section::Plots);
                         st.right_view = RightView::Plot;
                         st.sync_plot_for_active();
@@ -988,6 +985,7 @@ impl Probe {
             focus: cx.focus_handle(),
             table_focus: cx.focus_handle(),
             variable_editor: None,
+            inspector: crate::inspector::Inspector::default(),
             analysis_role: None,
             analysis_windows: Rc::new(RefCell::new(crate::analysis::PaneWindows::default())),
             analysis_split: None,
@@ -1025,6 +1023,7 @@ impl Probe {
             focus: cx.focus_handle(),
             table_focus: cx.focus_handle(),
             variable_editor: None,
+            inspector: crate::inspector::Inspector::default(),
             analysis_role: None,
             analysis_windows: Rc::new(RefCell::new(crate::analysis::PaneWindows::default())),
             analysis_split: None,

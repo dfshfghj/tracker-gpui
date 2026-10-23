@@ -1156,59 +1156,6 @@ impl Render for Probe {
                 None
             } else {
                 let st = state.borrow();
-                let mut track_list = div().flex().flex_col().gap_1();
-                for (i, t) in st.tracks.iter().enumerate() {
-                    let active = i == st.active;
-                    track_list = track_list.child(
-                        div()
-                            .id(("track", i))
-                            .flex()
-                            .items_center()
-                            .gap_2()
-                            .px_2()
-                            .py_1()
-                            .rounded_sm()
-                            .bg(if active { c(0x152238) } else { c(0x0d1420) })
-                            .cursor_pointer()
-                            .on_mouse_down(
-                                MouseButton::Left,
-                                cx.listener(move |this, _ev, _window, cx| {
-                                    let mut st = this.state.borrow_mut();
-                                    st.active = i;
-                                    if let Some(track) = st.tracks.get(i) {
-                                        st.selection = Selection::Track(track.id);
-                                    }
-                                    st.sync_plot_for_active();
-                                    drop(st);
-                                    cx.notify();
-                                }),
-                            )
-                            .child(div().w(px(8.)).h(px(8.)).rounded_sm().bg(rgb(t.color)))
-                            .child(
-                                div()
-                                    .flex_1()
-                                    .min_w(px(0.))
-                                    .truncate()
-                                    .text_xs()
-                                    .child(t.name.clone()),
-                            )
-                            .child(div().text_xs().text_color(c(0x5f6f88)).child(
-                                if t.is_rigid_body() {
-                                    tr("track.kind.rigid")
-                                } else if t.is_point_mass() {
-                                    format!("{}·{}", t.footprint.label(), t.step_size)
-                                } else {
-                                    t.kind_label().to_string()
-                                },
-                            ))
-                            .child(
-                                div()
-                                    .text_xs()
-                                    .text_color(c(0x7d8ca6))
-                                    .child(t.step_count().to_string()),
-                            ),
-                    );
-                }
                 let size = if st.img_w > 0.0 {
                     format!("{}×{}", st.img_w as u32, st.img_h as u32)
                 } else {
@@ -1240,7 +1187,6 @@ impl Render for Probe {
                 let mut object_rows: Vec<AnyElement> = Vec::new();
                 match st.selection {
                     Selection::Axes => {
-                        object_rows.push(kv(tr("object.object"), tr("object.axes")).into_any_element());
                         object_rows.push(editable_value(
                             state.clone(),
                             cx,
@@ -1328,9 +1274,7 @@ impl Render for Probe {
                     Selection::Stick(index) => {
                         if let Some((_, _, length)) = st.calibration.stick(st.frame, index) {
                             let visible = st.calibration.stick_visible(index);
-                            object_rows.push(
-                                kv(tr("object.object"), t!("object.stick", n = index + 1).to_string()).into_any_element(),
-                            );
+
                             object_rows.push(editable_value(
                                 state.clone(),
                                 cx,
@@ -1370,10 +1314,7 @@ impl Render for Probe {
                             let visible = track.visible;
                             let locked = track.locked;
                             let is_point_mass = track.is_point_mass();
-                            object_rows.push(
-                                kv(tr("object.object"), format!("{} · {}", track.name, track.kind_label()))
-                                    .into_any_element(),
-                            );
+
                             object_rows.push(check_item(
                                 220,
                                 tr("object.visible"),
@@ -1503,10 +1444,16 @@ impl Render for Probe {
                     Selection::None => {}
                 }
 
-                let collapsed_properties = st.collapsed.contains(&SideSection::Properties);
-                let collapsed_tracks = st.collapsed.contains(&SideSection::Tracks);
-                let collapsed_object = st.collapsed.contains(&SideSection::Object);
                 let right_view = st.right_view;
+                let inspector = if right_view == RightView::Inspector {
+                    let video_rows = vec![
+                        kv(tr("inspector.file"),st.title.clone()).into_any_element(),
+                        kv(tr("inspector.size"),size).into_any_element(),
+                        kv(tr("inspector.frame"),format!("{} / {:.1}fps",st.frame_count,fps)).into_any_element(),
+                        kv(tr("inspector.time"),format!("{} / {}",format_time(st.current_time()),format_time(st.total_time()))).into_any_element(),
+                    ];
+                    Some(self.render_object_inspector(object_rows,video_rows,window,cx))
+                } else {None};
                 let panel = div()
                     .id("right-panel")
                     .w_full()
@@ -1567,51 +1514,8 @@ impl Render for Probe {
                                 },
                             )),
                     )
-                    .when(right_view == RightView::Inspector, |this| {
-                        this.child(section_header(
-                            tr("inspector.properties"),
-                            SideSection::Properties,
-                            state.clone(),
-                            cx,
-                        ))
-                        .when(!collapsed_properties, |this| {
-                            this.child(kv(tr("inspector.file"), st.title.clone()))
-                                .child(kv(tr("inspector.size"), size))
-                                .child(kv(tr("inspector.frame"), format!("{} / {:.1}fps", st.frame_count, fps)))
-                                .child(kv(
-                                    tr("inspector.time"),
-                                    format!(
-                                        "{} / {}",
-                                        format_time(st.current_time()),
-                                        format_time(st.total_time())
-                                    ),
-                                ))
-                        })
-                        .child(section_header(
-                            tr("inspector.tracks"),
-                            SideSection::Tracks,
-                            state.clone(),
-                            cx,
-                        ))
-                        .when(!collapsed_tracks, |this| {
-                            this.child(if st.tracks.is_empty() {
-                                div().text_xs().text_color(c(0x5f6f88)).child(tr("inspector.no_tracks"))
-                            } else {
-                                track_list
-                            })
-                        })
-                        .when(st.selection != Selection::None, |this| {
-                            this.child(section_header(
-                                tr("inspector.selection"),
-                                SideSection::Object,
-                                state.clone(),
-                                cx,
-                            ))
-                            .when(!collapsed_object, |this| this.children(object_rows))
-                        })
-                    })
+                    .when_some(inspector, |panel, inspector| panel.child(inspector))
                     .when_some(analysis, |panel, analysis| panel.child(analysis))
-                    .when(right_view == RightView::Inspector, |panel| panel.child(div().flex_1()))
                     .when_some(activity, |this, (status, running)| {
                         this.child(
                             div()
@@ -1621,9 +1525,7 @@ impl Render for Probe {
                                 .child(status),
                         )
                     })
-                    .map(|panel| if right_view == RightView::Inspector {
-                        panel.overflow_y_scrollbar().into_any_element()
-                    } else { panel.into_any_element() });
+                    .into_any_element();
                 Some(panel)
             }
         };

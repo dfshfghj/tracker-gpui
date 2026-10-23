@@ -1,19 +1,10 @@
 use std::{cell::RefCell, rc::Rc};
 
-use gpui_component::{
-    input::{Input, InputEvent, InputState},
-    Sizable,
-};
+use gpui_component::input::{InputEvent, InputState};
 use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::*;
 
-use crate::{
-    c,
-    i18n::tr,
-    plot::PlotVar,
-    variables::Variables,
-    State,
-};
+use crate::{c, i18n::tr, plot::PlotVar, variables::Variables, State};
 
 pub(crate) struct VariableEditor {
     state: Rc<RefCell<State>>,
@@ -113,18 +104,18 @@ impl Render for VariableEditor {
             .child(format!(
                 "{} {} ({count})",
                 if self.open { "▾" } else { "▸" },
-                tr("variables.title")
+                tr("variables.properties")
             ));
         if !self.open {
             return div().w_full().child(header);
         }
-        let (track, unit) = {
-            let st = self.state.borrow();
-            (
-                st.active_track().unwrap().clone(),
-                st.calibration.unit.clone(),
-            )
-        };
+        // Keep the immutable document borrowed while building controls; cloning
+        // an entire track here would copy all samples on every inspector redraw.
+        let state = self.state.clone();
+        let st = state.borrow();
+        let track = st.active_track().unwrap();
+        let unit = st.calibration.unit.clone();
+
         if self.context != Some(context) {
             self.context = Some(context);
             self.reset(window, cx);
@@ -159,6 +150,24 @@ impl Render for VariableEditor {
                 |_| PlotVar::Custom(id).axis_label_for(&track, &unit),
                 |vars| vars.axis_label(PlotVar::Custom(id), &track, &unit),
             );
+            let value = compiled
+                .as_ref()
+                .ok()
+                .and_then(|vars| {
+                    vars.value(
+                        PlotVar::Custom(id),
+                        track,
+                        st.frame,
+                        &st.coords,
+                        st.video
+                            .as_ref()
+                            .map(|v| v.meta.frame_times.as_slice())
+                            .unwrap_or(&[]),
+                    )
+                })
+                .filter(|v| v.is_finite())
+                .map(|v| format!("{:.*}", st.calibration.decimals, v))
+                .unwrap_or_else(|| "-".into());
             let edit_name = def.name.clone();
             let edit_expression = def.expression.clone();
             body = body.child(
@@ -172,7 +181,7 @@ impl Render for VariableEditor {
                             .min_w_0()
                             .text_xs()
                             .text_color(c(0xa9bad2))
-                            .child(label)
+                            .child(format!("{label} = {value}"))
                             .child(
                                 div()
                                     .text_color(c(0x7d8ca6))
@@ -236,14 +245,22 @@ impl Render for VariableEditor {
                     .text_color(c(0x7d8ca6))
                     .child(tr("variables.name")),
             )
-            .child(Input::new(&self.name).small())
+            .child(crate::widgets::property_input(
+                "custom-property-name",
+                &self.name,
+                cx,
+            ))
             .child(
                 div()
                     .text_xs()
                     .text_color(c(0x7d8ca6))
                     .child(tr("variables.expression")),
             )
-            .child(Input::new(&self.expression).small());
+            .child(crate::widgets::property_input(
+                "custom-property-expression",
+                &self.expression,
+                cx,
+            ));
         let message = self
             .error
             .clone()

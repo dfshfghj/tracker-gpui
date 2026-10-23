@@ -397,6 +397,18 @@ toolbar:
     zh-CN: 未选择目录
 
 inspector:
+  objects:
+    en: Objects
+    zh-CN: 对象树
+  name:
+    en: Name
+    zh-CN: 名称
+  rename_hint:
+    en: Rename (Enter to save)
+    zh-CN: 改名（回车保存）
+  invalid_name:
+    en: Name cannot be empty
+    zh-CN: 名称不能为空
   title:
     en: Inspector
     zh-CN: 检查器
@@ -1321,12 +1333,15 @@ settings:
       en: Cmd+Option
       zh-CN: Cmd+Option
 variables:
+  properties:
+    en: Custom properties
+    zh-CN: 自定义属性
   title:
     en: Custom variables
     zh-CN: 自定义变量
   name:
     en: Name
-    zh-CN: 变量名
+    zh-CN: 属性名
   expression:
     en: Formula
     zh-CN: 公式
@@ -1337,8 +1352,8 @@ variables:
     en: Delete
     zh-CN: 删除
   save:
-    en: Save variable
-    zh-CN: 保存变量
+    en: Save property
+    zh-CN: 保存属性
   cancel:
     en: Cancel editing
     zh-CN: 取消编辑

@@ -2,7 +2,6 @@
 use std::collections::BTreeMap;
 
 use gpui_component::resizable::{resizable_panel, v_resizable, ResizableState};
-use gpui_component::scroll::ScrollableElement;
 use gpui_kit::prelude::FluentBuilder;
 
 use crate::i18n::tr;
@@ -31,7 +30,6 @@ fn notify_window(handle: AnyWindowHandle, cx: &mut App) {
 pub(crate) enum Pane {
     Plot(usize),
     Table,
-    Variables,
 }
 
 impl Pane {
@@ -39,7 +37,6 @@ impl Pane {
         match self {
             Self::Plot(index) => rust_i18n::t!("analysis.plot_number", n = index + 1).to_string(),
             Self::Table => tr("inspector.data_table"),
-            Self::Variables => tr("variables.title"),
         }
     }
 }
@@ -74,6 +71,7 @@ impl Probe {
             focus: cx.focus_handle(),
             table_focus: cx.focus_handle(),
             variable_editor: None,
+            inspector: crate::inspector::Inspector::default(),
             analysis_role: role,
             analysis_windows: windows,
             analysis_split: None,
@@ -180,11 +178,7 @@ impl Probe {
                     view.table_scroll = table_scroll.clone();
                     view.table_x_scroll = table_x_scroll.clone();
                 }
-                if pane == Pane::Variables {
-                    view.variable_editor = Some(cx.new(|cx| {
-                        crate::variable_editor::VariableEditor::new(state.clone(), window, cx)
-                    }));
-                }
+
                 view
             })
         }) {
@@ -341,21 +335,11 @@ impl Probe {
     }
 
     pub(crate) fn render_analysis_workspace(&mut self, cx: &mut Context<Self>) -> AnyElement {
-        let variables = plot_chip(900, tr("variables.title"), false, cx, |this, cx| {
-            this.open_analysis_window(Pane::Variables, cx)
-        });
         let tools = div()
             .flex_none()
-            .flex()
-            .items_center()
-            .justify_between()
-            .child(
-                div()
-                    .text_xs()
-                    .text_color(c(0x7d8ca6))
-                    .child(tr("analysis.current_track")),
-            )
-            .child(variables);
+            .text_xs()
+            .text_color(c(0x7d8ca6))
+            .child(tr("analysis.current_track"));
         let plot_header = self.analysis_header(Section::Plots, cx);
         let plot_body = crate::plot_view::plot_sidebar(
             self.state.clone(),
@@ -572,13 +556,6 @@ impl Probe {
                 cx,
             ),
             Pane::Table => self.render_analysis_table(cx),
-            Pane::Variables => div()
-                .id("variable-window-content")
-                .flex_1()
-                .min_h_0()
-                .overflow_y_scrollbar()
-                .child(self.variable_editor.as_ref().unwrap().clone())
-                .into_any_element(),
         };
         let popup = crate::menus::plot_var_popup(
             self.state.clone(),

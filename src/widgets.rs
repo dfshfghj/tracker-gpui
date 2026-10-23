@@ -5,43 +5,52 @@ use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::*;
 
 use crate::*;
+use gpui_component::{
+    input::{Input, InputState},
+    Sizable,
+};
 
-pub(crate) fn section_header(
-    label: impl Into<SharedString>,
-    section: SideSection,
-    state: Rc<RefCell<State>>,
-    cx: &mut Context<Probe>,
+#[cfg(test)]
+std::thread_local! {pub(crate) static PROPERTY_INPUT_BOUNDS: RefCell<std::collections::HashMap<EntityId,Bounds<Pixels>>> = RefCell::new(std::collections::HashMap::new());}
+
+// Native inputs retain focus on clicks that target non-focusable elements.
+// Share one outside-click rule across property fields and tree renaming.
+pub(crate) fn property_input<T: 'static>(
+    id: &'static str,
+    input: &Entity<InputState>,
+    cx: &mut Context<T>,
 ) -> AnyElement {
-    let label = label.into();
-    let collapsed = state.borrow().collapsed.contains(&section);
-    div()
-        .id(("side-section", section as usize))
+    let field = input.clone();
+    let wrapper = div()
+        .id(id)
         .w_full()
+        .min_w_0()
         .flex()
-        .items_center()
-        .justify_between()
-        .py_1()
-        .cursor_pointer()
-        .text_xs()
-        .font_weight(FontWeight::SEMIBOLD)
-        .text_color(c(0x8fa3bf))
-        .hover(|style| style.text_color(c(0xdbe6f5)))
-        .on_mouse_down(
-            MouseButton::Left,
-            cx.listener(move |_this, _ev, _window, cx| {
-                let mut st = state.borrow_mut();
-                if !st.collapsed.remove(&section) {
-                    st.collapsed.insert(section);
-                }
-                drop(st);
-                cx.notify();
-            }),
-        )
-        .child(label)
+        .on_mouse_down_out(cx.listener(move |_, _, window, cx| {
+            if field.read(cx).focus_handle(cx).is_focused(window) {
+                window.blur(cx);
+            }
+        }));
+    #[cfg(test)]
+    let wrapper = {
+        use gpui_kit::base::ElementExt;
+        let id = input.entity_id();
+        wrapper.on_prepaint(move |bounds, _, _| {
+            PROPERTY_INPUT_BOUNDS.with(|map| {
+                map.borrow_mut().insert(id, bounds);
+            })
+        })
+    };
+    wrapper
         .child(
-            div()
-                .text_color(c(0x5f6f88))
-                .child(if collapsed { "▸" } else { "▾" }),
+            Input::new(input)
+                .small()
+                .w_full()
+                .min_w_0()
+                .focus_bordered(false)
+                .bg(c(0x111a29))
+                .text_color(c(0xdbe6f5))
+                .border_color(c(0x1d2a3d)),
         )
         .into_any_element()
 }
@@ -195,6 +204,20 @@ pub(crate) fn editable_value(
                 .unwrap_or_default()
         };
         return div()
+            .id(("editing-property", id))
+            .on_mouse_down_out(cx.listener(move |this, _, _, cx| {
+                let mut state = this.state.borrow_mut();
+                if state
+                    .inline_edit
+                    .as_ref()
+                    .is_some_and(|edit| edit.target == target)
+                {
+                    if !state.apply_inline_edit() {
+                        state.inline_edit = None;
+                    }
+                    cx.notify();
+                }
+            }))
             .flex()
             .flex_col()
             .gap_0p5()

@@ -20,7 +20,6 @@ impl DocState {
             tracks: Vec::new(),
             active: 0,
             next_track_id: 1,
-            collapsed: HashSet::new(),
             plot: PlotState::default(),
             coords: ImageCoordSystem::default(),
             calibration: Calibration::default(),
