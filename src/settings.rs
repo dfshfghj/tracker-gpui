@@ -16,7 +16,7 @@ use std::rc::Rc;
 use rust_i18n::t;
 
 use crate::i18n::tr;
-use crate::prefs::WheelBindings;
+use crate::prefs::{TableCopyFormat, WheelBindings};
 use crate::theme::{theme_mode, ThemeMode};
 use crate::wheel::{modifier_spec, WheelAction};
 use crate::*;
@@ -40,8 +40,10 @@ pub(crate) struct SettingsWindow {
     focus: FocusHandle,
     focused_once: bool,
     scroll: ScrollHandle,
-    language: Entity<SelectState<Vec<LanguageChoice>>>,
+    language: Entity<SelectState<Vec<SettingsChoice>>>,
     language_value: String,
+    copy_format: Entity<SelectState<Vec<SettingsChoice>>>,
+    copy_format_value: TableCopyFormat,
     recording: Option<WheelAction>,
     recorded_modifiers: Modifiers,
     recording_keys: HashSet<String>,
@@ -62,9 +64,32 @@ impl SettingsWindow {
         });
         cx.subscribe(
             &language,
-            |this, _, event: &SelectEvent<Vec<LanguageChoice>>, cx| {
+            |this, _, event: &SelectEvent<Vec<SettingsChoice>>, cx| {
                 if let SelectEvent::Confirm(Some(value)) = event {
                     this.state.borrow_mut().apply_language(value);
+                    cx.refresh_windows();
+                }
+            },
+        )
+        .detach();
+        let copy_format_value = state.borrow().prefs.table_copy_format;
+        let copy_format = cx.new(|cx| {
+            let mut select = SelectState::new(copy_format_choices(), None, window, cx);
+            select.set_selected_value(&copy_format_value.key().to_string(), window, cx);
+            select
+        });
+        cx.subscribe(
+            &copy_format,
+            |this, _, event: &SelectEvent<Vec<SettingsChoice>>, cx| {
+                if let SelectEvent::Confirm(Some(value)) = event {
+                    let mut st = this.state.borrow_mut();
+                    st.prefs.table_copy_format = if value == "csv" {
+                        TableCopyFormat::Csv
+                    } else {
+                        TableCopyFormat::Excel
+                    };
+                    st.prefs.save();
+                    drop(st);
                     cx.refresh_windows();
                 }
             },
@@ -77,6 +102,8 @@ impl SettingsWindow {
             scroll: ScrollHandle::new(),
             language,
             language_value,
+            copy_format,
+            copy_format_value,
             recording: None,
             recorded_modifiers: Modifiers::default(),
             recording_keys: HashSet::new(),
@@ -227,12 +254,12 @@ impl SettingsWindow {
 }
 
 #[derive(Clone)]
-struct LanguageChoice {
+struct SettingsChoice {
     value: String,
     label: String,
 }
 
-impl SelectItem for LanguageChoice {
+impl SelectItem for SettingsChoice {
     type Value = String;
     fn title(&self) -> SharedString {
         self.label.clone().into()
@@ -242,14 +269,27 @@ impl SelectItem for LanguageChoice {
     }
 }
 
-fn language_choices() -> Vec<LanguageChoice> {
+fn language_choices() -> Vec<SettingsChoice> {
     crate::i18n::menu_entries()
         .into_iter()
-        .map(|(value, label)| LanguageChoice {
+        .map(|(value, label)| SettingsChoice {
             value: value.into(),
             label,
         })
         .collect()
+}
+
+fn copy_format_choices() -> Vec<SettingsChoice> {
+    vec![
+        SettingsChoice {
+            value: "excel".into(),
+            label: tr("settings.copy_excel"),
+        },
+        SettingsChoice {
+            value: "csv".into(),
+            label: "CSV".into(),
+        },
+    ]
 }
 
 fn wheel_action_label(action: WheelAction) -> String {
@@ -462,7 +502,8 @@ impl Render for SettingsWindow {
         );
 
         // ---- language ----
-        if self.language_value != language {
+        let language_changed = self.language_value != language;
+        if language_changed {
             self.language.update(cx, |select, cx| {
                 select.set_items(language_choices(), window, cx);
                 select.set_selected_value(&language, window, cx);
@@ -470,6 +511,18 @@ impl Render for SettingsWindow {
             self.language_value = language;
         }
         let language_select = Select::new(&self.language)
+            .small()
+            .w(px(190.))
+            .into_any_element();
+        let copy_format_value = self.state.borrow().prefs.table_copy_format;
+        if self.copy_format_value != copy_format_value || language_changed {
+            self.copy_format.update(cx, |select, cx| {
+                select.set_items(copy_format_choices(), window, cx);
+                select.set_selected_value(&copy_format_value.key().to_string(), window, cx);
+            });
+            self.copy_format_value = copy_format_value;
+        }
+        let copy_format_select = Select::new(&self.copy_format)
             .small()
             .w(px(190.))
             .into_any_element();
@@ -614,6 +667,15 @@ impl Render for SettingsWindow {
                             tr("settings.language"),
                             tr("settings.language_desc"),
                             language_select,
+                            true,
+                        )],
+                    ))
+                    .child(section(
+                        tr("settings.data_table"),
+                        vec![setting_row(
+                            tr("settings.copy_format"),
+                            tr("settings.copy_format_desc"),
+                            copy_format_select,
                             true,
                         )],
                     ))

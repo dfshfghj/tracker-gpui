@@ -494,7 +494,8 @@ impl Probe {
                         st.tracks[track].add_keyframe(16);
                         st.active = track;
                         st.selection = Selection::None;
-                        let table = st.table_tsv();
+                        st.sync_table_selection();
+                        let table = st.table_csv();
                         eprintln!(
                             "[script] trail points={} frame={} labels={} trail={}/{} table_header={:?} table_rows={}",
                             st.tracks[track].step_count(),
@@ -647,8 +648,7 @@ impl Probe {
                         st.collapsed.insert(SideSection::Properties);
                         st.collapsed.insert(SideSection::Tracks);
                         st.collapsed.insert(SideSection::Object);
-                        st.collapsed.insert(SideSection::Data);
-                        st.collapsed.remove(&SideSection::Plot);
+                        _this.analysis_maximized = Some(crate::analysis::Section::Plots);
                         st.right_view = RightView::Plot;
                         st.sync_plot_for_active();
                         eprintln!(
@@ -982,9 +982,23 @@ impl Probe {
         })
         .detach();
         crate::theme::sync_component_theme(cx);
+        Self::observe_analysis_owner(cx);
         Self {
             state,
             focus: cx.focus_handle(),
+            table_focus: cx.focus_handle(),
+            variable_editor: None,
+            analysis_role: None,
+            analysis_windows: Rc::new(RefCell::new(crate::analysis::PaneWindows::default())),
+            analysis_split: None,
+            analysis_maximized: None,
+            table_scroll: UniformListScrollHandle::new(),
+            table_x_scroll: ScrollHandle::new(),
+            plot_scroll: ScrollHandle::new(),
+            plot_cache: crate::plot_view::PlotCache::default(),
+            table_columns_open: false,
+            plot_var_menu: None,
+            plot_var_pos: (0., 0.),
             focused_once: false,
             dialog_only: false,
             main: None,
@@ -1009,6 +1023,19 @@ impl Probe {
         Self {
             state,
             focus: cx.focus_handle(),
+            table_focus: cx.focus_handle(),
+            variable_editor: None,
+            analysis_role: None,
+            analysis_windows: Rc::new(RefCell::new(crate::analysis::PaneWindows::default())),
+            analysis_split: None,
+            analysis_maximized: None,
+            table_scroll: UniformListScrollHandle::new(),
+            table_x_scroll: ScrollHandle::new(),
+            plot_scroll: ScrollHandle::new(),
+            plot_cache: crate::plot_view::PlotCache::default(),
+            table_columns_open: false,
+            plot_var_menu: None,
+            plot_var_pos: (0., 0.),
             focused_once: false,
             dialog_only: true,
             main: Some(main),

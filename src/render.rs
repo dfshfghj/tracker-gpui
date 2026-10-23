@@ -9,6 +9,9 @@ use crate::*;
 impl Render for Probe {
     #[allow(refining_impl_trait)]
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> AnyElement {
+        if self.analysis_role.is_some() {
+            return self.render_analysis_window(window, cx);
+        }
         if self.dialog_only {
             return self.render_tracker_dialog(window, cx);
         }
@@ -31,6 +34,7 @@ impl Render for Probe {
             let mut st = self.state.borrow_mut();
             st.tick();
             st.poll_tracking();
+            st.sync_table_selection();
             st.ensure_frame_image();
             st.count_frame();
             let waiting_frame =
@@ -47,6 +51,7 @@ impl Render for Probe {
             drops.extend(std::mem::take(&mut st.textures_to_drop));
             drops
         };
+        self.refresh_analysis_windows(cx);
         for image in retired {
             let _ = window.drop_image(image);
         }
@@ -209,19 +214,15 @@ impl Render for Probe {
                         st.redo_edit();
                     }
                     "c" if ev.keystroke.modifiers.control || ev.keystroke.modifiers.platform => {
-                        let text = st.table_tsv();
-                        if !text.is_empty() {
-                            cx.write_to_clipboard(ClipboardItem::new_string(text));
-                            st.status = Some(tr("status.table_copied"));
-                        }
+                        st.copy_table_to_clipboard(cx);
                     }
                     "f" => st.fit(),
                     "t" => st.select_tool(Tool::Move),
                     "escape" => {
                         if st.tool_menu.is_some() {
                             st.tool_menu = None;
-                        } else if st.plot_var_menu.is_some() {
-                            st.plot_var_menu = None;
+                        } else if this.plot_var_menu.is_some() {
+                            this.plot_var_menu = None;
                         } else if st.menu_open.is_some() {
                             st.menu_open = None;
                         } else {
@@ -1087,6 +1088,7 @@ impl Render for Probe {
                 };
 
                 let panel = div()
+                    .id("left-panel")
                     .w_full()
                     .min_w(px(0.))
                     .flex_none()
@@ -1142,12 +1144,14 @@ impl Render for Probe {
         };
 
         // ---- right panel: properties + data table ----
+        let analysis = if state.borrow().right_view == RightView::Plot {
+            Some(self.render_analysis_workspace(cx))
+        } else { None };
         let right = {
             if !state.borrow().right_open {
                 None
             } else {
                 let st = state.borrow();
-                let track = st.tracks.get(st.active);
                 let mut track_list = div().flex().flex_col().gap_1();
                 for (i, t) in st.tracks.iter().enumerate() {
                     let active = i == st.active;
@@ -1201,141 +1205,12 @@ impl Render for Probe {
                             ),
                     );
                 }
-                let mut rows = div().flex().flex_col().gap_1();
-                let table_decimals = st.calibration.decimals;
-                let frame_times = st
-                    .video
-                    .as_ref()
-                    .map(|video| video.meta.frame_times.as_slice())
-                    .unwrap_or(&[]);
-                let format_value = |value: Option<f32>| {
-                    value
-                        .filter(|value| value.is_finite())
-                        .map(|value| format!("{:.*}", table_decimals, value))
-                        .unwrap_or_else(|| "-".to_string())
-                };
-                let columns = st.table_columns;
-                let mut table_header = div()
-                    .flex()
-                    .gap_2()
-                    .px_2()
-                    .py_1()
-                    .flex_none()
-                    .text_xs()
-                    .font_weight(FontWeight::SEMIBOLD)
-                    .text_color(c(0x8fa3bf));
-                if columns[0] {
-                    table_header = table_header.child(div().w(px(48.)).child("t (s)"));
-                }
-                if columns[1] {
-                    table_header = table_header.child(div().w(px(58.)).child("x"));
-                }
-                if columns[2] {
-                    table_header = table_header.child(div().w(px(58.)).child("y"));
-                }
-                if columns[3] {
-                    table_header = table_header.child(div().w(px(60.)).child("vx"));
-                }
-                if columns[4] {
-                    table_header = table_header.child(div().w(px(60.)).child("vy"));
-                }
-                let mut table_rows = div().flex().flex_col().gap_0p5();
-                let mut row_count = 0usize;
-                let mut selected_count = 0usize;
-                let table_visible = st.right_view == RightView::Plot
-                    && !st.collapsed.contains(&SideSection::Data)
-                    && track.map_or(false, |track| track.is_point_mass());
-                if table_visible {
-                    if let Some(track) = track.filter(|track| track.is_point_mass()) {
-                        for (frame, image_x, image_y) in track.points() {
-                            row_count += 1;
-                            let selected = st.table_selection.contains(&frame);
-                            if selected {
-                                selected_count += 1;
-                            }
-                            let (world_x, world_y) = track
-                                .world_position(frame, &st.coords)
-                                .unwrap_or_else(|| st.to_world(image_x, image_y));
-                            let velocity = track.world_velocity(frame, &st.coords, frame_times);
-                            let on = frame == st.frame;
-                            let mut row = div()
-                                .id(("table-row", frame))
-                                .flex()
-                                .gap_2()
-                                .px_2()
-                                .py_0p5()
-                                .rounded_sm()
-                                .cursor_pointer()
-                                .bg(if selected {
-                                    c(0x1b2b45)
-                                } else if on {
-                                    c(0x16233a)
-                                } else {
-                                    c(0x0d1420)
-                                })
-                                .text_xs()
-                                .text_color(if selected || on {
-                                    c(0xdbe6f5)
-                                } else {
-                                    c(0xa9bad2)
-                                })
-                                .on_mouse_down(
-                                    MouseButton::Left,
-                                    cx.listener(move |this, _ev, _window, cx| {
-                                        let mut st = this.state.borrow_mut();
-                                        if !st.table_selection.remove(&frame) {
-                                            st.table_selection.insert(frame);
-                                        }
-                                        drop(st);
-                                        cx.notify();
-                                    }),
-                                );
-                            if columns[0] {
-                                row = row.child(
-                                    div()
-                                        .w(px(48.))
-                                        .child(format!("{:.3}", st.frame_time(frame))),
-                                );
-                            }
-                            if columns[1] {
-                                row = row.child(
-                                    div()
-                                        .w(px(58.))
-                                        .child(format!("{:.*}", table_decimals, world_x)),
-                                );
-                            }
-                            if columns[2] {
-                                row = row.child(
-                                    div()
-                                        .w(px(58.))
-                                        .child(format!("{:.*}", table_decimals, world_y)),
-                                );
-                            }
-                            if columns[3] {
-                                row = row.child(
-                                    div()
-                                        .w(px(60.))
-                                        .child(format_value(velocity.map(|value| value.0))),
-                                );
-                            }
-                            if columns[4] {
-                                row = row.child(
-                                    div()
-                                        .w(px(60.))
-                                        .child(format_value(velocity.map(|value| value.1))),
-                                );
-                            }
-                            table_rows = table_rows.child(row);
-                        }
-                    }
-                }
-                rows = rows.child(table_header).child(table_rows);
-                let empty = track.map_or(true, |track| track.step_count() == 0);
                 let size = if st.img_w > 0.0 {
                     format!("{}×{}", st.img_w as u32, st.img_h as u32)
                 } else {
                     "-".to_string()
                 };
+                let frame_times = st.video.as_ref().map(|v| v.meta.frame_times.as_slice()).unwrap_or(&[]);
                 let fps = st.video.as_ref().map(|video| video.meta.fps).unwrap_or(0.0);
                 let unit = st.calibration.unit.clone();
                 let decimals = st.calibration.decimals;
@@ -1627,19 +1502,15 @@ impl Render for Probe {
                 let collapsed_properties = st.collapsed.contains(&SideSection::Properties);
                 let collapsed_tracks = st.collapsed.contains(&SideSection::Tracks);
                 let collapsed_object = st.collapsed.contains(&SideSection::Object);
-                let collapsed_data = st.collapsed.contains(&SideSection::Data);
-                let collapsed_plot = st.collapsed.contains(&SideSection::Plot);
-                let show_data = track.map_or(true, |track| track.is_point_mass());
-                let has_plot = track.map_or(false, |track| track.is_point_mass());
-                let is_point_mass = track.map_or(false, |track| track.is_point_mass());
                 let right_view = st.right_view;
                 let panel = div()
+                    .id("right-panel")
                     .w_full()
                     .min_w(px(0.))
                     .flex_none()
                     .h_full()
                     .min_h(px(0.))
-                    .overflow_y_scrollbar()
+                    .overflow_hidden()
                     .flex()
                     .flex_col()
                     .gap_2()
@@ -1648,6 +1519,7 @@ impl Render for Probe {
                     .child(
                         div()
                             .w_full()
+                            .flex_none()
                             .flex()
                             .items_center()
                             .gap_2()
@@ -1734,128 +1606,8 @@ impl Render for Probe {
                             .when(!collapsed_object, |this| this.children(object_rows))
                         })
                     })
-                    .when(right_view == RightView::Plot, |this| {
-                        this.when(has_plot, |this| {
-                            this.child(section_header(tr("inspector.plot"), SideSection::Plot, state.clone(), cx))
-                                .when(!collapsed_plot, |this| {
-                                    this.child(plot_sidebar(state.clone(), cx))
-                                })
-                        })
-                        .when(show_data, |this| {
-                            this.child(section_header(
-                                tr("inspector.data_table"),
-                                SideSection::Data,
-                                state.clone(),
-                                cx,
-                            ))
-                            .when(!collapsed_data, |this| {
-                                let mut columns_row =
-                                    div().flex().items_center().gap_2().child(
-                                        div().text_xs().text_color(c(0x7d8ca6)).child(tr("inspector.columns")),
-                                    );
-                                for (index, label) in
-                                    ["t", "x", "y", "vx", "vy"].into_iter().enumerate()
-                                {
-                                    let checked = st.table_columns[index];
-                                    columns_row = columns_row.child(check_item(
-                                        600 + index,
-                                        label,
-                                        checked,
-                                        true,
-                                        cx,
-                                        move |this, _cx| {
-                                            let mut st = this.state.borrow_mut();
-                                            st.table_columns[index] = !st.table_columns[index];
-                                        },
-                                    ));
-                                }
-                                this.child(columns_row)
-                                    .child(
-                                        div()
-                                            .flex()
-                                            .items_center()
-                                            .gap_2()
-                                            .child(div().text_xs().text_color(c(0x5f6f88)).child(
-                                                t!(
-                                                    "inspector.rows",
-                                                    rows = row_count,
-                                                    selected = selected_count
-                                                )
-                                                .to_string(),
-                                            ))
-                                            .child(div().flex_1())
-                                            .child(plot_chip(
-                                                610,
-                                                tr("inspector.select_all"),
-                                                false,
-                                                cx,
-                                                |this, _cx| {
-                                                    let mut st = this.state.borrow_mut();
-                                                    let frames: HashSet<usize> = st
-                                                        .active_track()
-                                                        .filter(|track| track.is_point_mass())
-                                                        .map(|track| {
-                                                            track
-                                                                .points()
-                                                                .map(|(frame, _, _)| frame)
-                                                                .collect()
-                                                        })
-                                                        .unwrap_or_default();
-                                                    st.table_selection = frames;
-                                                },
-                                            ))
-                                            .child(plot_chip(
-                                                611,
-                                                tr("inspector.clear"),
-                                                false,
-                                                cx,
-                                                |this, _cx| {
-                                                    this.state.borrow_mut().table_selection.clear();
-                                                },
-                                            ))
-                                            .child(plot_chip(
-                                                612,
-                                                tr("inspector.copy"),
-                                                false,
-                                                cx,
-                                                |this, cx| {
-                                                    let text = this.state.borrow().table_tsv();
-                                                    if !text.is_empty() {
-                                                        cx.write_to_clipboard(
-                                                            ClipboardItem::new_string(text),
-                                                        );
-                                                        this.state.borrow_mut().status =
-                                                            Some(tr("status.table_copied"));
-                                                    }
-                                                },
-                                            )),
-                                    )
-                                    .child(
-                                        div()
-                                            .text_xs()
-                                            .text_color(c(0x5f6f88))
-                                            .child(tr("inspector.table_hint")),
-                                    )
-                                    .child(if empty {
-                                        div()
-                                            .text_xs()
-                                            .text_color(c(0x5f6f88))
-                                            .child(tr("inspector.no_points"))
-                                    } else {
-                                        rows
-                                    })
-                            })
-                        })
-                        .when(!is_point_mass, |this| {
-                            this.child(
-                                div()
-                                    .text_xs()
-                                    .text_color(c(0x5f6f88))
-                                    .child(tr("inspector.plot_only_point")),
-                            )
-                        })
-                    })
-                    .child(div().flex_1())
+                    .when_some(analysis, |panel, analysis| panel.child(analysis))
+                    .when(right_view == RightView::Inspector, |panel| panel.child(div().flex_1()))
                     .when_some(activity, |this, (status, running)| {
                         this.child(
                             div()
@@ -1865,7 +1617,9 @@ impl Render for Probe {
                                 .child(status),
                         )
                     })
-                    .into_any_element();
+                    .map(|panel| if right_view == RightView::Inspector {
+                        panel.overflow_y_scrollbar().into_any_element()
+                    } else { panel.into_any_element() });
                 Some(panel)
             }
         };
@@ -1972,13 +1726,16 @@ impl Render for Probe {
             .border_color(c(0x1d2a3d))
             .text_color(c(0xdbe6f5))
             .child(menu_bar(state.clone(), cx));
+        if state.borrow().menu_open.is_some() || state.borrow().tool_menu.is_some() {
+            self.plot_var_menu = None;
+        }
         let menu_overlay = if state.borrow().menu_open.is_some()
             || state.borrow().tool_menu.is_some()
-            || state.borrow().plot_var_menu.is_some()
+            || self.plot_var_menu.is_some()
         {
             // Keep the menu bar available when switching between its menus.
             let top = if state.borrow().tool_menu.is_some()
-                || state.borrow().plot_var_menu.is_some()
+                || self.plot_var_menu.is_some()
             {
                 px(0.)
             } else {
@@ -1995,7 +1752,7 @@ impl Render for Probe {
                     let mut st = this.state.borrow_mut();
                     st.menu_open = None;
                     st.tool_menu = None;
-                    st.plot_var_menu = None;
+                    this.plot_var_menu = None;
                     drop(st);
                     cx.notify();
                 }))
@@ -2005,7 +1762,7 @@ impl Render for Probe {
         };
         let popup = menu_popup(state.clone(), cx);
         let tool_popup = tool_menu_popup(state.clone(), cx);
-        let plot_var_popup = plot_var_popup(state.clone(), cx);
+        let plot_var_popup = plot_var_popup(state.clone(), self.plot_var_menu, self.plot_var_pos, window, cx);
         let modal = modal_view(state.clone(), cx);
         let workspace = self.render_workspace_layout(left, center.into_any_element(), right, cx);
 
@@ -2017,6 +1774,11 @@ impl Render for Probe {
             .bg(c(0x070b12))
             .text_color(c(0xdbe6f5))
             .key_context("Tracker")
+            .capture_key_down(cx.listener(|this, ev: &KeyDownEvent, _, cx| {
+                if ev.keystroke.key == "escape" && this.plot_var_menu.take().is_some() {
+                    cx.stop_propagation(); cx.notify();
+                }
+            }))
             .on_action(cx.listener(|this, _: &ToggleWorkspace, _, cx| {
                 this.state.borrow_mut().toggle_sidebar(true);
                 cx.notify();

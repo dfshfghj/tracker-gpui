@@ -201,6 +201,7 @@ pub struct Track {
     pub keyframes: BTreeSet<usize>,
     pub kind: TrackKind,
     pub rigid: Option<RigidBody>,
+    pub variables: Vec<crate::variables::Definition>,
 }
 
 impl Track {
@@ -217,6 +218,7 @@ impl Track {
             keyframes: BTreeSet::new(),
             kind: TrackKind::PointMass(PointMass::default()),
             rigid: None,
+            variables: Vec::new(),
         }
     }
 
@@ -293,6 +295,7 @@ impl Track {
             keyframes: BTreeSet::new(),
             kind: TrackKind::Measurement(MeasurementTrack::new(kind)),
             rigid: None,
+            variables: Vec::new(),
         }
     }
 
@@ -359,15 +362,31 @@ impl Track {
     }
 
     pub fn points(&self) -> impl Iterator<Item = (usize, f32, f32)> + '_ {
-        let items: Vec<(usize, f32, f32)> = match &self.kind {
-            TrackKind::PointMass(point_mass) => point_mass
-                .steps
-                .iter()
-                .map(|(frame, step)| (*frame, step.x, step.y))
-                .collect(),
-            TrackKind::Measurement(_) => Vec::new(),
+        let steps = match &self.kind {
+            TrackKind::PointMass(point_mass) => Some(&point_mass.steps),
+            TrackKind::Measurement(_) => None,
         };
-        items.into_iter()
+        steps
+            .into_iter()
+            .flat_map(|steps| steps.iter())
+            .map(|(frame, step)| (*frame, step.x, step.y))
+    }
+
+    // BTreeMap neighbors avoid allocating/scanning all frames for each derivative.
+    fn point_neighbors(&self, frame: usize) -> Option<(Option<usize>, Option<usize>)> {
+        let TrackKind::PointMass(track) = &self.kind else {
+            return None;
+        };
+        if !track.steps.contains_key(&frame) {
+            return None;
+        }
+        let previous = track.steps.range(..frame).next_back().map(|(f, _)| *f);
+        let next = track
+            .steps
+            .range((std::ops::Bound::Excluded(frame), std::ops::Bound::Unbounded))
+            .next()
+            .map(|(f, _)| *f);
+        Some((previous, next))
     }
 
     pub fn point_at(&self, frame: usize) -> Option<(f32, f32)> {
@@ -580,16 +599,10 @@ impl Track {
         coords: &ImageCoordSystem,
         frame_times: &[f64],
     ) -> Option<(f32, f32)> {
-        let frames = self.frames();
-        let index = frames.iter().position(|f| *f == frame)?;
+        let (previous, next) = self.point_neighbors(frame)?;
         let current_time = frame_times.get(frame).copied()?;
-        let previous = index.checked_sub(1).and_then(|i| {
-            let f = frames[i];
-            Some((f, frame_times.get(f).copied()?))
-        });
-        let next = frames
-            .get(index + 1)
-            .and_then(|f| Some((*f, frame_times.get(*f).copied()?)));
+        let previous = previous.and_then(|f| Some((f, frame_times.get(f).copied()?)));
+        let next = next.and_then(|f| Some((f, frame_times.get(f).copied()?)));
         let (world_x, world_y) = self.world_position(frame, coords)?;
         let (prev_x, prev_y) = previous
             .and_then(|(f, _)| self.world_position(f, coords))
@@ -619,10 +632,7 @@ impl Track {
         coords: &ImageCoordSystem,
         frame_times: &[f64],
     ) -> Option<(f32, f32)> {
-        let frames = self.frames();
-        let index = frames.iter().position(|f| *f == frame)?;
-        let previous = index.checked_sub(1).map(|i| frames[i]);
-        let next = frames.get(index + 1).copied();
+        let (previous, next) = self.point_neighbors(frame)?;
         let (Some(previous), Some(next)) = (previous, next) else {
             return None;
         };
@@ -755,5 +765,44 @@ mod tests {
         assert!(track.measurement_step(3).is_some());
         track.delete_point(3);
         assert!(track.handles(3).is_empty());
+    }
+    #[test]
+    fn derivatives_use_sparse_neighbors_and_preserve_endpoint_rules() {
+        let mut track = Track::point_mass(1, "Sparse", 0);
+        let frames = [0, 2, 7, 20, 31];
+        let times: Vec<_> = (0..32).map(|f| (f as f64 * 0.2).powi(2)).collect();
+        for f in frames {
+            track.set_point(f, (times[f] * times[f]) as f32, times[f] as f32);
+        }
+        let coords = ImageCoordSystem::default();
+        let reference = |i: usize| {
+            let a = i.saturating_sub(1);
+            let b = (i + 1).min(frames.len() - 1);
+            let pa = track.world_position(frames[a], &coords).unwrap();
+            let pb = track.world_position(frames[b], &coords).unwrap();
+            let dt = (times[frames[b]] - times[frames[a]]) as f32;
+            ((pb.0 - pa.0) / dt, (pb.1 - pa.1) / dt)
+        };
+        for (i, f) in frames.into_iter().enumerate() {
+            let v = track.world_velocity(f, &coords, &times).unwrap();
+            assert_eq!(v, reference(i));
+            if i > 0 && i + 1 < frames.len() {
+                let a = reference(i - 1);
+                let b = reference(i + 1);
+                let dt = (times[frames[i + 1]] - times[frames[i - 1]]) as f32;
+                assert_eq!(
+                    track.world_acceleration(f, &coords, &times),
+                    Some(((b.0 - a.0) / dt, (b.1 - a.1) / dt))
+                );
+            } else {
+                assert!(track.world_acceleration(f, &coords, &times).is_none());
+            }
+        }
+        assert!(track.world_velocity(3, &coords, &times).is_none());
+        assert!(track.world_velocity(7, &coords, &[]).is_none());
+        let mut one = Track::point_mass(2, "One", 0);
+        one.set_point(7, 1., 2.);
+        assert!(one.world_velocity(7, &coords, &times).is_none());
+        assert!(track.world_velocity(7, &coords, &[0.; 32]).is_none());
     }
 }

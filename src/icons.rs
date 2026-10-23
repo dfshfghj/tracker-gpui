@@ -3,6 +3,11 @@ use gpui_kit::*;
 
 use crate::*;
 
+pub(crate) const ICON_DETACH: &str = r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke='#000' stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3h7v7M21 3l-9 9"/><path d="M10 5H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-5"/></svg>"#;
+pub(crate) const ICON_DOCK: &str = r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke='#000' stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 15h18M11 7l-4 4m0-4v4h4"/></svg>"#;
+pub(crate) const ICON_MAXIMIZE: &str = r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke='#000' stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3H3v6m0-6 7 7m5-7h6v6m0-6-7 7M3 15v6h6m-6 0 7-7m11 1v6h-6m6 0-7-7"/></svg>"#;
+pub(crate) const ICON_RESTORE: &str = r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke='#000' stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3l7 7m0-6v6H4m17-7-7 7m0-6v6h6M3 21l7-7m0 6v-6H4m17 7-7-7m0 6v-6h6"/></svg>"#;
+
 pub(crate) const ICON_TRACKS: &str = r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke='#000' stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="2"/><circle cx="6" cy="12" r="2"/><circle cx="6" cy="18" r="2"/><path d="M11 6h9"/><path d="M11 12h9"/><path d="M11 18h9"/></svg>"#;
 // Toolbar icons redrawn as SVG from Tracker's bitmap icons.
 pub(crate) const ICON_MOVE: &str = r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke='#000' stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18"/><path d="M3 12h18"/><path d="m9 6 3-3 3 3"/><path d="m9 18 3 3 3-3"/><path d="m6 9-3 3 3 3"/><path d="m18 9 3 3-3 3"/></svg>"#;

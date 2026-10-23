@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum PlotVar {
+    Custom(u64),
     Frame,
     Time,
     X,
@@ -29,6 +30,7 @@ pub enum PlotVar {
 impl PlotVar {
     pub fn label(self) -> String {
         match self {
+            Self::Custom(id) => format!("variable_{id}").into(),
             Self::Frame => t!("plot.var.frame"),
             Self::Time => "t".into(),
             Self::X => "x".into(),
@@ -51,7 +53,7 @@ impl PlotVar {
 
     pub fn unit(self, length_unit: &str) -> String {
         match self {
-            Self::Frame => String::new(),
+            Self::Custom(_) | Self::Frame => String::new(),
             Self::Time => "s".to_string(),
             Self::X
             | Self::Y
@@ -76,9 +78,29 @@ impl PlotVar {
         }
     }
 
+    pub fn axis_label_for(self, track: &Track, length_unit: &str) -> String {
+        if let Self::Custom(id) = self {
+            let Some(def) = track.variables.iter().find(|d| d.id == id) else {
+                return self.label();
+            };
+            let unit = crate::variables::Variables::compile(track)
+                .ok()
+                .and_then(|v| v.unit(id, length_unit))
+                .unwrap_or_else(|| "?".into());
+            if unit.is_empty() {
+                def.name.clone()
+            } else {
+                format!("{} ({unit})", def.name)
+            }
+        } else {
+            self.axis_label(length_unit)
+        }
+    }
+
     pub fn available(self, track: &Track) -> bool {
         let measurement = track.measurement_kind();
         match self {
+            Self::Custom(id) => track.variables.iter().any(|d| d.id == id),
             Self::Frame | Self::Time => true,
             Self::X | Self::Y | Self::Vx | Self::Vy | Self::Ax | Self::Ay | Self::Speed => {
                 track.is_point_mass()
@@ -117,7 +139,10 @@ impl PlotVar {
             PlotVar::CenterX,
             PlotVar::CenterY,
         ];
-        ALL.into_iter().filter(|var| var.available(track)).collect()
+        ALL.into_iter()
+            .filter(|var| var.available(track))
+            .chain(track.variables.iter().map(|d| Self::Custom(d.id)))
+            .collect()
     }
 
     pub fn value(
@@ -128,6 +153,13 @@ impl PlotVar {
         frame_times: &[f64],
     ) -> Option<f64> {
         match self {
+            Self::Custom(_) => crate::variables::Variables::compile(track).ok()?.value(
+                self,
+                track,
+                frame,
+                coords,
+                frame_times,
+            ),
             Self::Frame => Some(frame as f64),
             Self::Time => frame_times.get(frame).copied(),
             Self::X => track
@@ -379,11 +411,17 @@ pub fn series(
     frame_times: &[f64],
 ) -> PlotSeries {
     let mut points = Vec::new();
+    let variables = crate::variables::Variables::compile(track).ok();
+    let value = |var: PlotVar, frame| match &variables {
+        Some(vars) => vars.value(var, track, frame, coords, frame_times),
+        None if !matches!(var, PlotVar::Custom(_)) => var.value(track, frame, coords, frame_times),
+        None => None,
+    };
     for frame in track.frames() {
-        let Some(x) = config.x_var.value(track, frame, coords, frame_times) else {
+        let Some(x) = value(config.x_var, frame) else {
             continue;
         };
-        let Some(y) = config.y_var.value(track, frame, coords, frame_times) else {
+        let Some(y) = value(config.y_var, frame) else {
             continue;
         };
         if !x.is_finite() || !y.is_finite() {

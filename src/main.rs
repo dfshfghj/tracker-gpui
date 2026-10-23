@@ -22,6 +22,10 @@ use rust_i18n::t;
 use serde::{Deserialize, Serialize};
 
 mod coords;
+mod analysis;
+mod variables;
+mod variable_editor;
+mod data_table;
 mod history;
 mod plot;
 mod prefs;
@@ -65,6 +69,7 @@ mod orb_match;
 #[cfg(feature = "vision")]
 mod orb_track;
 mod plot_view;
+mod plot_geometry;
 mod render;
 mod settings;
 #[cfg(feature = "vision")]
@@ -78,7 +83,7 @@ mod workspace;
 
 use coords::{Calibration, CalibrationStep, ImageCoordSystem};
 use history::{EditSnapshot, UndoStack};
-use plot::{PlotConfig, PlotPoint, PlotSeries, PlotState, PlotVar};
+use plot::{PlotConfig, PlotSeries, PlotState, PlotVar};
 use prefs::Preferences;
 use track::{
     MeasurementKind, MeasurementStep, RigidBodyMarker, RigidBodyStep, RigidMaskMode, Track,
@@ -307,8 +312,6 @@ enum SideSection {
     Properties,
     Tracks,
     Object,
-    Data,
-    Plot,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -509,7 +512,7 @@ struct DocState {
     labels_visible: bool,
     trace_visible: bool,
     table_columns: [bool; 5],
-    table_selection: HashSet<usize>,
+    table_selection: data_table::TableSelection,
 
     scale: f32,
     tx: f32,
@@ -577,8 +580,6 @@ struct State {
     measurement_tool: Tool,
     tool_menu: Option<ToolGroup>,
     tool_menu_pos: (f32, f32),
-    plot_var_menu: Option<(usize, PlotAxis)>,
-    plot_var_pos: (f32, f32),
     shift_down: bool,
     inline_edit: Option<InlineEdit>,
     tab_scroll: ScrollHandle,
@@ -633,6 +634,19 @@ fn make_image(data: Vec<u8>, w: u32, h: u32) -> Arc<RenderImage> {
 struct Probe {
     state: Rc<RefCell<State>>,
     focus: FocusHandle,
+    table_focus: FocusHandle,
+    variable_editor: Option<Entity<variable_editor::VariableEditor>>,
+    analysis_role: Option<analysis::Pane>,
+    analysis_windows: Rc<RefCell<analysis::PaneWindows>>,
+    analysis_split: Option<Entity<gpui_component::resizable::ResizableState>>,
+    analysis_maximized: Option<analysis::Section>,
+    table_scroll: UniformListScrollHandle,
+    table_x_scroll: ScrollHandle,
+    plot_scroll: ScrollHandle,
+    plot_cache: plot_view::PlotCache,
+    table_columns_open: bool,
+    plot_var_menu: Option<(usize, PlotAxis)>,
+    plot_var_pos: (f32, f32),
     focused_once: bool,
     dialog_only: bool,
     main: Option<Entity<Probe>>,

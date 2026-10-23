@@ -276,10 +276,10 @@ pub(crate) fn plot_var_chip(
                 let mut st = this.state.borrow_mut();
                 st.menu_open = None;
                 st.tool_menu = None;
-                st.plot_var_menu = Some((plot_index, axis));
-                st.plot_var_pos = (f32::from(ev.position.x), f32::from(ev.position.y));
+                this.plot_var_menu = Some((plot_index, axis));
+                this.plot_var_pos = (f32::from(ev.position.x), f32::from(ev.position.y));
                 drop(st);
-                cx.notify();
+                cx.refresh_windows();
             }),
         )
         .child(label)

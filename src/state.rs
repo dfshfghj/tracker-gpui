@@ -32,7 +32,7 @@ impl DocState {
             labels_visible: true,
             trace_visible: false,
             table_columns: [true, true, true, false, false],
-            table_selection: HashSet::new(),
+            table_selection: data_table::TableSelection::default(),
             scale: 1.0,
             tx: 0.0,
             ty: 0.0,
@@ -132,84 +132,6 @@ impl DocState {
         } else {
             self.plot = PlotState::default();
         }
-    }
-
-    pub(crate) fn table_tsv(&self) -> String {
-        let Some(track) = self.active_track().filter(|track| track.is_point_mass()) else {
-            return String::new();
-        };
-        let unit = self.calibration.unit.clone();
-        let decimals = self.calibration.decimals;
-        let mut headers = Vec::new();
-        if self.table_columns[0] {
-            headers.push("t (s)".to_string());
-        }
-        if self.table_columns[1] {
-            headers.push(format!("x ({unit})"));
-        }
-        if self.table_columns[2] {
-            headers.push(format!("y ({unit})"));
-        }
-        if self.table_columns[3] {
-            headers.push(format!("vx ({unit}/s)"));
-        }
-        if self.table_columns[4] {
-            headers.push(format!("vy ({unit}/s)"));
-        }
-        if headers.is_empty() {
-            return String::new();
-        }
-        let selected = if self.table_selection.is_empty() {
-            None
-        } else {
-            Some(&self.table_selection)
-        };
-        let frame_times = self
-            .video
-            .as_ref()
-            .map(|video| video.meta.frame_times.as_slice())
-            .unwrap_or(&[]);
-        let mut text = headers.join("	")
-            + "
-";
-        for (frame, image_x, image_y) in track.points() {
-            if selected.map_or(false, |frames| !frames.contains(&frame)) {
-                continue;
-            }
-            let (world_x, world_y) = track
-                .world_position(frame, &self.coords)
-                .unwrap_or_else(|| self.to_world(image_x, image_y));
-            let velocity = track.world_velocity(frame, &self.coords, frame_times);
-            let mut values = Vec::new();
-            if self.table_columns[0] {
-                values.push(format!("{:.3}", self.frame_time(frame)));
-            }
-            if self.table_columns[1] {
-                values.push(format!("{:.*}", decimals, world_x));
-            }
-            if self.table_columns[2] {
-                values.push(format!("{:.*}", decimals, world_y));
-            }
-            if self.table_columns[3] {
-                values.push(
-                    velocity
-                        .filter(|value| value.0.is_finite())
-                        .map(|value| format!("{:.*}", decimals, value.0))
-                        .unwrap_or_else(|| "-".to_string()),
-                );
-            }
-            if self.table_columns[4] {
-                values.push(
-                    velocity
-                        .filter(|value| value.1.is_finite())
-                        .map(|value| format!("{:.*}", decimals, value.1))
-                        .unwrap_or_else(|| "-".to_string()),
-                );
-            }
-            text.push_str(&values.join("\t"));
-            text.push('\n');
-        }
-        text
     }
 
     pub(crate) fn set_plot_count(&mut self, count: usize) {
@@ -885,6 +807,7 @@ impl DocState {
                 .tracks
                 .iter()
                 .map(|track| TrackProject {
+                    variables: track.variables.clone(),
                     name: track.name.clone(),
                     color: track.color,
                     visible: track.visible,
@@ -1027,6 +950,7 @@ impl DocState {
                         restored
                     }
                 };
+                restored.variables = track.variables.clone();
                 restored.visible = track.visible;
                 restored.locked = track.locked;
                 restored.step_size = track.step_size.max(1);
@@ -1184,10 +1108,6 @@ impl DocState {
         self.active_stick = self.calibration.stick_count() - 1;
         self.selection = Selection::Stick(self.active_stick);
         self.commit_edit();
-    }
-
-    pub(crate) fn to_world(&self, x: f32, y: f32) -> (f32, f32) {
-        self.coords.image_to_world(self.frame, x, y)
     }
 
     pub(crate) fn count_frame(&mut self) {
@@ -1612,7 +1532,17 @@ impl State {
             .ok()
             .map(PathBuf::from)
             .or_else(|| prefs.last_workdir.clone());
-        let mut st = Self {
+        let mut st = Self::with_preferences(prefs);
+        if let Some(dir) = initial_dir {
+            if dir.is_dir() {
+                st.set_workdir(dir);
+            }
+        }
+        st
+    }
+
+    pub(crate) fn with_preferences(prefs: Preferences) -> Self {
+        Self {
             docs: vec![DocState::placeholder()],
             active_doc: 0,
             next_doc_id: 1,
@@ -1633,8 +1563,6 @@ impl State {
             measurement_tool: Tool::Tape,
             tool_menu: None,
             tool_menu_pos: (0.0, 0.0),
-            plot_var_menu: None,
-            plot_var_pos: (0.0, 0.0),
             shift_down: false,
             inline_edit: None,
             tab_scroll: ScrollHandle::new(),
@@ -1660,13 +1588,7 @@ impl State {
             motion_pure_mask: false,
             point_detect_method: PointDetectMethod::AutoTracker,
             rigid_detect_method: RigidDetectMethod::MotionContour,
-        };
-        if let Some(dir) = initial_dir {
-            if dir.is_dir() {
-                st.set_workdir(dir);
-            }
         }
-        st
     }
 
     pub(crate) fn open_tracker_dialog(&mut self) {

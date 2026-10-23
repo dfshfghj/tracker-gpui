@@ -452,8 +452,8 @@ inspector:
     en: Copy
     zh-CN: 复制
   table_hint:
-    en: Click a row to select; copy copies selected rows, or all when nothing is selected
-    zh-CN: 点击行选择；复制选中行，未选择时复制全部
+    en: Drag to select · Shift to extend · Ctrl to add/remove · Ctrl+C to copy (with headers)
+    zh-CN: 拖拽选择 · Shift 扩选 · Ctrl 加选/取消 · Ctrl+C 复制（含列名）
   no_points:
     en: This track has no data points
     zh-CN: 当前轨道没有数据点
@@ -1290,6 +1290,18 @@ settings:
   language_desc:
     en: Interface language. Applies immediately to every window.
     zh-CN: 界面语言，切换后立即应用到所有窗口。
+  data_table:
+    en: Data table
+    zh-CN: 数据表
+  copy_format:
+    en: Clipboard format
+    zh-CN: 复制格式
+  copy_format_desc:
+    en: Excel pastes into worksheet cells; CSV uses commas. Includes column names.
+    zh-CN: Excel 格式可直接粘贴到工作表；CSV 使用逗号分列。均包含列名。
+  copy_excel:
+    en: Excel (paste into cells)
+    zh-CN: Excel（直接粘贴）
   mouse_wheel:
     en: Mouse wheel
     zh-CN: 鼠标滚轮
@@ -1361,3 +1373,101 @@ settings:
   saved_hint:
     en: "Changes are saved immediately to %{path}"
     zh-CN: "修改会立即保存到 %{path}"
+
+variables:
+  title:
+    en: Custom variables
+    zh-CN: 自定义变量
+  name:
+    en: Name (letters, digits and underscores)
+    zh-CN: 变量名（英文字母、数字、下划线）
+  expression:
+    en: Formula
+    zh-CN: 公式
+  inputs:
+    en: "Available: %{detail}; custom variables can also be referenced."
+    zh-CN: "可用变量：%{detail}；也可引用其他自定义变量。"
+  help:
+    en: "+ - * / ^, sqrt, abs, sin/cos/tan, asin/acos/atan, exp, ln, log10, min/max, hypot; pi and e. Numeric constants are dimensionless. Trig uses radians for dimensionless inputs; angle inputs and inverse trig use degrees. Example: r = sqrt(x^2 + y^2)."
+    zh-CN: "支持 + - * / ^、sqrt、abs、sin/cos/tan、asin/acos/atan、exp、ln、log10、min/max、hypot；常量 pi、e。数值常量无量纲；三角函数无量纲参数按弧度，角度变量及反三角结果按度。例如 r = sqrt(x^2 + y^2)。"
+  edit:
+    en: Edit
+    zh-CN: 编辑
+  delete:
+    en: Delete
+    zh-CN: 删除
+  save:
+    en: Save variable
+    zh-CN: 保存变量
+  cancel:
+    en: Cancel editing
+    zh-CN: 取消编辑
+  unit:
+    en: "Unit: %{detail}"
+    zh-CN: "单位：%{detail}"
+  dimensionless:
+    en: dimensionless
+    zh-CN: 无量纲
+  error:
+    syntax:
+      en: "Invalid formula at character %{detail}."
+      zh-CN: "公式第 %{detail} 个字符附近有语法错误。"
+    limit:
+      en: "Formula exceeds the complexity limit (%{detail})."
+      zh-CN: "公式超出复杂度限制（%{detail}）。"
+    name:
+      en: "Invalid or reserved variable name: %{detail}."
+      zh-CN: "变量名不合法或已被占用：%{detail}。"
+    duplicate:
+      en: "Duplicate variable name or identifier: %{detail}."
+      zh-CN: "变量名或标识重复：%{detail}。"
+    unknown:
+      en: "Unknown variable: %{detail}. If deleting, first update dependent formulas."
+      zh-CN: "未知变量：%{detail}。若在删除变量，请先修改引用它的公式。"
+    cycle:
+      en: "Circular dependency involving %{detail}."
+      zh-CN: "变量 %{detail} 存在循环依赖。"
+    dimension:
+      en: "Incompatible dimensions for %{detail}. Addition/subtraction need matching units; exp/log need dimensionless inputs."
+      zh-CN: "%{detail} 的量纲不匹配。加减需要相同量纲，指数和对数函数需要无量纲参数。"
+    power:
+      en: "A dimensional base needs a constant exponent between -32 and 32."
+      zh-CN: "带量纲的底数需要 -32 到 32 之间的常数指数。"
+    function:
+      en: "Unknown function or wrong number of arguments: %{detail}."
+      zh-CN: "函数不存在或参数个数不正确：%{detail}。"
+
+analysis:
+  current_track:
+    en: Analysis
+    zh-CN: 分析
+  follow_selection:
+    en: Follows the selected video and track
+    zh-CN: 跟随当前选中的视频与轨道
+  plot_number:
+    en: "Plot %{n}"
+    zh-CN: "图 %{n}"
+  detached:
+    en: "%{detail} is in a separate window"
+    zh-CN: "%{detail}已在独立窗口中"
+  plot_detached:
+    en: "Plot %{n} is in a separate window"
+    zh-CN: "图 %{n} 已在独立窗口中"
+  show_window:
+    en: Show separate window
+    zh-CN: 显示独立窗口
+  detach:
+    en: Open in separate window
+    zh-CN: 移至独立窗口
+  dock:
+    en: Return to sidebar
+    zh-CN: 放回侧栏
+  maximize:
+    en: Maximize section
+    zh-CN: 在分析区最大化
+  restore:
+    en: Restore split layout
+    zh-CN: 恢复图表分区
+  window_failed:
+    en: "Unable to open analysis window: %{detail}"
+    zh-CN: "无法打开分析窗口：%{detail}"

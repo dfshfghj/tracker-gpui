@@ -10,6 +10,8 @@ packet 索引，之后按帧请求、顺序解码或 seek 关键帧，不再让�
 - 解码：`ffmpeg-the-third` 6.0 / FFmpeg 9（Windows x64 shared；macOS Homebrew shared）
 - 视频：FFmpeg 解码 → swscale BGRA → `RenderImage`；轨迹/手柄用图元绘制
 - 工作区：目录树、多标签、视频左侧竖向工具栏、右侧可折叠属性/数据面板
+- 分析布局：图与数据表上下分区、独立滚动，拖动分界线调整比例；分区可最大化，每张图及表格可移至独立窗口，关闭后自动放回。独立窗口跟随当前视频和轨道。
+- 自定义数据变量：按轨道定义公式，自动推导量纲，并同步加入绘图和数据表；详见 [使用说明](CUSTOM_VARIABLES.md)
 - 视觉（可选）：OpenCV 4.12（`vision` feature），用于运动目标检测；后续用于标定/去畸变、ArUco 刚体识别
 
 ## 构建（Windows / macOS）

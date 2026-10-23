@@ -455,10 +455,10 @@ pub(crate) fn tool_menu_popup(state: Rc<RefCell<State>>, cx: &mut Context<Probe>
         .into_any_element()
 }
 
-pub(crate) fn plot_var_popup(state: Rc<RefCell<State>>, cx: &mut Context<Probe>) -> AnyElement {
-    let (menu, x, y, available, unit, current) = {
+pub(crate) fn plot_var_popup(state: Rc<RefCell<State>>, menu: Option<(usize, PlotAxis)>, pos: (f32, f32), window: &mut Window, cx: &mut Context<Probe>) -> AnyElement {
+    let (menu, x, y, available, current) = {
         let st = state.borrow();
-        let Some((plot_index, axis)) = st.plot_var_menu else {
+        let Some((plot_index, axis)) = menu else {
             return div().into_any_element();
         };
         let Some(track) = st.active_track() else {
@@ -473,23 +473,26 @@ pub(crate) fn plot_var_popup(state: Rc<RefCell<State>>, cx: &mut Context<Probe>)
                 PlotAxis::Y => config.y_var,
             })
             .unwrap_or(PlotVar::X);
+        let variables = crate::variables::Variables::compile(track).ok();
         (
             (plot_index, axis),
-            st.plot_var_pos.0,
-            st.plot_var_pos.1,
-            PlotVar::all_for(track),
-            st.calibration.unit.clone(),
+            pos.0,
+            pos.1,
+            PlotVar::all_for(track).into_iter().map(|var|
+                (var, variables.as_ref().map_or_else(
+                    || var.axis_label_for(track, &st.calibration.unit),
+                    |vars| vars.axis_label(var, track, &st.calibration.unit)))).collect::<Vec<_>>(),
             var,
         )
     };
     let (plot_index, axis) = menu;
     let mut items = Vec::new();
-    for (index, var) in available.into_iter().enumerate() {
+    for (index, (var, label)) in available.into_iter().enumerate() {
         let active = var == current;
-        let label = var.axis_label(&unit);
         items.push(
             div()
                 .id(("plot-var-item", index))
+                .flex_none()
                 .w_full()
                 .flex()
                 .items_center()
@@ -505,9 +508,9 @@ pub(crate) fn plot_var_popup(state: Rc<RefCell<State>>, cx: &mut Context<Probe>)
                     cx.listener(move |this, _ev, _window, cx| {
                         let mut st = this.state.borrow_mut();
                         st.set_plot_var(plot_index, axis, var);
-                        st.plot_var_menu = None;
+                        this.plot_var_menu = None;
                         drop(st);
-                        cx.notify();
+                        cx.refresh_windows();
                     }),
                 )
                 .child(if active { "●" } else { " " })
@@ -515,10 +518,17 @@ pub(crate) fn plot_var_popup(state: Rc<RefCell<State>>, cx: &mut Context<Probe>)
                 .into_any_element(),
         );
     }
+    let viewport = window.viewport_size();
+    let height = (items.len() as f32 * 24. + 10.).min(300.).min((f32::from(viewport.height) - 16.).max(24.));
+    let top = y.min((f32::from(viewport.height) - height - 8.).max(8.)).max(8.);
+    let left = (x + 8.).min((f32::from(viewport.width) - 218.).max(8.)).max(8.);
     crate::overlay::overlay_surface()
+        .id("plot-variable-popup")
+        .max_h(px(height))
+        .overflow_y_scroll()
         .absolute()
-        .top(px(y))
-        .left(px(x + 8.0))
+        .top(px(top))
+        .left(px(left))
         .w(px(210.))
         .flex()
         .flex_col()

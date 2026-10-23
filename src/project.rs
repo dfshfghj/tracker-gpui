@@ -6,7 +6,8 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 pub const FORMAT: &str = "tracker-gpui-project";
-pub const VERSION: u32 = 3;
+// v4 adds derived-variable definitions and custom plot-axis references.
+pub const VERSION: u32 = 4;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ProjectFile {
@@ -66,6 +67,8 @@ pub struct DocProject {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct TrackProject {
+    #[serde(default)]
+    pub variables: Vec<crate::variables::Definition>,
     pub name: String,
     #[serde(default)]
     pub color: u32,
@@ -239,6 +242,7 @@ mod tests {
     #[test]
     fn track_metadata_roundtrip() {
         let track = TrackProject {
+            variables: Vec::new(),
             name: "Track 7".into(),
             color: 0x123456,
             visible: false,
@@ -272,6 +276,7 @@ mod tests {
     #[test]
     fn measurement_roundtrip() {
         let track = TrackProject {
+            variables: Vec::new(),
             name: "Tape 2".into(),
             color: 0,
             visible: true,
@@ -301,6 +306,7 @@ mod tests {
     #[test]
     fn rigid_body_roundtrip() {
         let track = TrackProject {
+            variables: Vec::new(),
             name: "Rigid".into(),
             color: 1,
             visible: true,

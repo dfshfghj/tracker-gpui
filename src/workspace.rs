@@ -125,7 +125,6 @@ impl State {
         *open = !*open;
         self.menu_open = None;
         self.tool_menu = None;
-        self.plot_var_menu = None;
     }
 }
 
