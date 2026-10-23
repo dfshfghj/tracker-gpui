@@ -108,15 +108,15 @@ macOS 会把裁剪版 OpenCV dylib 放进 `.app/Contents/Frameworks` 并参与�
 ### FFmpeg 裁剪（GitHub Actions）
 
 当前完整 Windows 共享构建中 `avcodec-63.dll` 约 87MB，加上 `avformat/avutil/
-swscale/swresample` 合计约 113MB；其中编码器、muxer、filter、网络协议和大量
-未使用 codec 对本项目没有意义。仓库准备了最小化构建：
+swscale/swresample` 合计约 113MB；仓库提供按解码与视频导出需求裁剪的构建：
 
 - 配置：`scripts/configure-ffmpeg-minimal.sh`
   - 只保留 file 协议、mov/matroska/avi/flv/asf/mpeg/mpegts/mpegvideo/ogg demuxer；
   - 只保留 h264/hevc/mpeg4/mpeg1-2/mjpeg/prores/theora/vp8/vp9/av1/flv/h263/
     wmv/vc1/msmpeg4/dv/ffv1/huffyuv/utvideo/dnxhd/rawvideo 解码器；
-  - 保留 h264/hevc annexb 和 mpeg4 unpack bitstream filter；
-  - 关闭 encoders/muxers/filters/avdevice/avfilter/programs/network/hwaccels/
+  - 保留 h264/hevc annexb、mpeg4 unpack 和 AAC ADTS 转 ASC bitstream filter；
+  - 增加内置 mpeg4 编码器和 mp4 muxer，原音频通过 packet 直接复制；
+  - 关闭其他 encoders/muxers、filters/avdevice/avfilter/programs/network/hwaccels/
     gpl/nonfree。
 - 构建：`.github/workflows/build.yml`（每次 push 自动运行）
   - Windows x86_64：Ubuntu 上 MinGW 交叉编译，生成 DLL/头文件，并用
@@ -496,3 +496,19 @@ duet.mp4 1920×1080 30.03fps 609 帧
 本项目以 GNU General Public License v3.0 或更高版本发布，详见 [LICENSE](LICENSE)。
 Windows 发行包内的 OpenCV 以 Apache-2.0 许可使用，FFmpeg 以 LGPL 2.1+ 使用，
 对应许可证随包附带。
+
+## 导出带对象的视频
+
+“文件 → 导出视频…”打开独立窗口，预览与导出使用相同的离屏渲染器。
+导出打开窗口时当前视频的可见对象，包括坐标轴、标度尺、测量工具、质点标记和刚体轮廓；
+轨迹、轨迹线和步号沿用当前显示开关，不导出编辑手柄、选框和侧栏。
+
+可设置首尾帧（从 0 开始，含首尾）、原始/75%/50%/25% 分辨率、原始/24/30/60 fps
+以及 2/5/10/20 Mbps 码率。输出为 MP4 / MPEG-4，尺寸取偶数；原始帧率保留逐帧时间戳，
+指定帧率按原始时间线重采样。原音频默认直接复制，若其编码不兼容 MP4，可关闭原音频。
+对象大小随输出分辨率缩放，与主窗口缩放无关。
+
+导出在后台执行，支持取消；关闭导出窗口会取消任务。先在目标目录写临时文件，
+成功完成封装后才替换目标，失败或取消保留原文件。禁止覆盖源视频。
+无需安装 ffmpeg 命令行程序，也不依赖 OpenCV。Windows/macOS CI 以裁剪 FFmpeg 运行真实
+编码回归测试，覆盖范围、帧率、音频复制、隐藏对象和取消。

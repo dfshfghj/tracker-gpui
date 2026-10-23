@@ -1423,3 +1423,68 @@ analysis:
   window_failed:
     en: "Unable to open analysis window: %{detail}"
     zh-CN: "无法打开分析窗口：%{detail}"
+
+export:
+  title:
+    en: "Export Video…"
+    zh-CN: "导出视频…"
+  original:
+    en: "Same as source"
+    zh-CN: "与原视频一致"
+  preview:
+    en: "Update preview"
+    zh-CN: "更新预览"
+  loading:
+    en: "Loading preview…"
+    zh-CN: "正在生成预览…"
+  range:
+    en: "Frames (inclusive)"
+    zh-CN: "帧范围（含首尾）"
+  resolution:
+    en: "Resolution"
+    zh-CN: "分辨率"
+  fps:
+    en: "Frame rate"
+    zh-CN: "帧率"
+  bitrate:
+    en: "Video bitrate"
+    zh-CN: "视频码率"
+  audio:
+    en: "Original audio"
+    zh-CN: "原音频"
+  audio_on:
+    en: "Keep (stream copy)"
+    zh-CN: "保留（直接复制）"
+  audio_off:
+    en: "No audio"
+    zh-CN: "不含音频"
+  note:
+    en: "Export the full image with objects visible when this window was opened. Trails and frame numbers follow those display settings. Frame numbers start at 0. Audio must be compatible with MP4."
+    zh-CN: "导出完整画面及打开本窗口时的可见对象，轨迹和步号沿用当时的显示设置。帧号从 0 开始；原音频须兼容 MP4。"
+  invalid_range:
+    en: "Enter a valid frame range within the source video."
+    zh-CN: "请输入视频范围内有效的起止帧。"
+  complete:
+    en: "Export complete:"
+    zh-CN: "导出完成："
+  cancelled:
+    en: "Export cancelled."
+    zh-CN: "已取消导出。"
+  failed:
+    en: "Export worker stopped unexpectedly."
+    zh-CN: "导出任务异常结束。"
+  running:
+    en: "Exporting…"
+    zh-CN: "正在导出…"
+  cancel:
+    en: "Cancel export"
+    zh-CN: "取消导出"
+  start:
+    en: "Export…"
+    zh-CN: "导出…"
+  mp4_name:
+    en: "Use a filename ending in .mp4."
+    zh-CN: "请使用以 .mp4 结尾的文件名。"
+  preview_frame:
+    en: "Preview frame"
+    zh-CN: "预览帧"

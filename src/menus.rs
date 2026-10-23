@@ -573,6 +573,10 @@ pub(crate) fn menu_popup(state: Rc<RefCell<State>>, cx: &mut Context<Probe>) -> 
             items.push(menu_item(tr("menu.item.save_as"), has_docs, cx, |this, cx| {
                 request_save_as(this.state.clone(), SaveAction::None, cx);
             }));
+            let can_export = state.borrow().video.is_some();
+            items.push(menu_item(tr("export.title"), can_export, cx, |this, cx| {
+                this.open_export_window(cx);
+            }));
             items.push(menu_item(tr("menu.item.open_folder"), true, cx, |this, cx| {
                 request_choose_folder(this.state.clone(), cx);
             }));

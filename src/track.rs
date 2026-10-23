@@ -372,6 +372,15 @@ impl Track {
             .map(|(frame, step)| (*frame, step.x, step.y))
     }
 
+    pub fn points_in(&self, frames: std::ops::RangeInclusive<usize>) -> impl Iterator<Item = (usize, f32, f32)> + '_ {
+        let steps = match &self.kind {
+            TrackKind::PointMass(point_mass) => Some(&point_mass.steps),
+            TrackKind::Measurement(_) => None,
+        };
+        steps.into_iter().flat_map(move |steps| steps.range(frames.clone()))
+            .map(|(frame, step)| (*frame, step.x, step.y))
+    }
+
     // BTreeMap neighbors avoid allocating/scanning all frames for each derivative.
     fn point_neighbors(&self, frame: usize) -> Option<(Option<usize>, Option<usize>)> {
         let TrackKind::PointMass(track) = &self.kind else {

@@ -32,6 +32,8 @@ pub struct VideoMeta {
     pub frames: usize,
     /// Presentation time of each frame, in seconds, relative to frame 0.
     pub frame_times: Vec<f64>,
+    /// End of the final video packet, relative to frame 0 (audio may be longer).
+    pub duration: f64,
 }
 
 impl VideoMeta {
@@ -216,7 +218,10 @@ pub struct FrameSource {
 }
 
 impl FrameSource {
-    #[cfg(feature = "vision")]
+    pub fn start_time(&self) -> f64 {
+        self.index.raw_pts.first().copied().unwrap_or(0) as f64
+            * self.index.tb_num as f64 / self.index.tb_den as f64
+    }
     pub fn meta(&self) -> &VideoMeta {
         &self.meta
     }
@@ -370,6 +375,7 @@ fn build_index(path: &Path, progress: Option<&AtomicU32>) -> Result<(VideoMeta, 
 
     let mut packets: Vec<(i64, bool)> = Vec::new();
     let mut last_pts = i64::MIN;
+    let mut end_pts: Option<i64> = None;
     for item in input.packets() {
         let (stream, packet) = item.map_err(|e| format!("read packet: {e}"))?;
         if stream.index() != stream_index {
@@ -380,6 +386,10 @@ fn build_index(path: &Path, progress: Option<&AtomicU32>) -> Result<(VideoMeta, 
             .or_else(|| packet.dts())
             .unwrap_or_else(|| last_pts.saturating_add(1));
         last_pts = pts;
+        if packet.duration() > 0 {
+            let end = pts.saturating_add(packet.duration());
+            end_pts = Some(end_pts.map_or(end, |previous| previous.max(end)));
+        }
         packets.push((pts, packet.is_key()));
 
         if let Some(progress) = progress {
@@ -451,6 +461,9 @@ fn build_index(path: &Path, progress: Option<&AtomicU32>) -> Result<(VideoMeta, 
         width,
         height,
         frames: raw_pts.len(),
+        duration: end_pts.filter(|end| *end > *raw_pts.last().unwrap())
+            .map(|end| (end - first_pts) as f64 * tb)
+            .unwrap_or_else(|| frame_times.last().copied().unwrap_or(0.) + 1. / fps as f64),
         frame_times,
     };
     let index = Index {

@@ -6847,6 +6847,7 @@ dependencies = [
  "libc",
  "opencv",
  "raw-window-handle",
+ "resvg 0.46.0",
  "rust-i18n",
  "serde",
  "serde_json",

@@ -106,8 +106,9 @@ jobs:
           Built with LGPL 2.1+, GPL/nonfree disabled.
           Enabled: mov/matroska/avi/flv/asf/mpeg/mpegts/mpegvideo/ogg demuxers,
           H.264/HEVC/MPEG-4/MPEG-1/2/MJPEG/ProRes/VP8/VP9/AV1/Theora/WMV/VC-1/DV and
-          common lossless decoders. Audio is parsed but not decoded. No filters,
-          encoders, muxers, programs, network protocols, or hardware acceleration.
+          common lossless decoders. Native MPEG-4 encoding and MP4 muxing are enabled.
+          Original audio can be stream-copied. No filters,
+          external encoders, programs, network protocols, or hardware acceleration.
           EOF
       - uses: actions/upload-artifact@v4
         with:
@@ -189,6 +190,13 @@ jobs:
         env:
           LIBCLANG_PATH: C:\Program Files\LLVM\bin
         run: cargo build --locked --release --all-features
+      - name: Verify video export with minimal FFmpeg
+        env:
+          LIBCLANG_PATH: C:\Program Files\LLVM\bin
+        run: |
+          $opencvDll = Get-ChildItem -Path $env:OPENCV_PREFIX -Recurse -Filter "opencv_world4120.dll" | Select-Object -First 1
+          $env:PATH = "$env:FFMPEG_DIR\bin;$($opencvDll.DirectoryName);$env:PATH"
+          cargo test --locked --release --all-features --bin tracker-gpui export_video::tests
       - name: Package app
         shell: pwsh
         run: |
@@ -320,6 +328,10 @@ jobs:
           key: macos-${{ matrix.arch }}-release-${{ env.FFMPEG_VERSION }}-${{ env.FFMPEG_CACHE_VERSION }}-${{ hashFiles('scripts/configure-ffmpeg-minimal.sh') }}
       - name: Build release app
         run: cargo build --locked --release --all-features
+      - name: Verify video export with minimal FFmpeg
+        run: |
+          export DYLD_FALLBACK_LIBRARY_PATH="$FFMPEG_DIR/lib:$OPENCV_PREFIX/lib"
+          cargo test --locked --release --all-features --bin tracker-gpui export_video::tests
       - name: Package .app
         run: |
           APP="dist/Tracker GPUI.app"

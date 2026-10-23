@@ -15,6 +15,9 @@ use std::sync::Arc;
 use std::time::Instant;
 
 mod video;
+mod export_overlay;
+mod export_video;
+mod export_window;
 mod scroll_area;
 use video::{FrameData, VideoStream};
 

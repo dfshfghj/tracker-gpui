@@ -26,6 +26,7 @@ ffmpeg-the-third = { version = "=6.0.0", default-features = false, features = [
 ] }
 image = { version = "0.25.1", default-features = false, features = ["jpeg", "png"] }
 smallvec = "1"
+resvg = { version = "0.46.0", default-features = false, features = ["text", "system-fonts"] }
 raw-window-handle = "0.6"
 opencv = { version = "0.101.1", optional = true, default-features = false, features = [
   "imgproc",
