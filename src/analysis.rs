@@ -511,45 +511,8 @@ impl Probe {
                 cx,
                 |this, _| this.table_columns_open = !this.table_columns_open,
             ))
-            .child(div().flex_1())
-            .child(plot_chip(
-                611,
-                tr("inspector.select_all"),
-                false,
-                cx,
-                |this, cx| {
-                    this.state.borrow_mut().select_all_table();
-                    notify_workspace_windows(cx);
-                },
-            ))
-            .child(plot_chip(
-                612,
-                tr("inspector.clear"),
-                false,
-                cx,
-                |this, cx| {
-                    this.state.borrow_mut().table_selection.clear();
-                    notify_workspace_windows(cx);
-                },
-            ))
-            .child(plot_chip(
-                613,
-                tr("inspector.copy"),
-                false,
-                cx,
-                |this, cx| {
-                    this.state.borrow_mut().copy_table_to_clipboard(cx);
-                    notify_workspace_windows(cx);
-                },
-            ));
-        let summary = div().flex_none().text_xs().text_color(c(0x5f6f88)).child(
-            rust_i18n::t!(
-                "inspector.rows",
-                rows = count,
-                selected = st.table_selection.selected_rows()
-            )
-            .to_string(),
-        );
+            .child(div().flex_1());
+
         let data = if has_track && count > 0 {
             crate::data_table::table_view(
                 &st,
@@ -562,11 +525,11 @@ impl Probe {
             div()
                 .text_xs()
                 .text_color(c(0x7d8ca6))
-                .child(tr(if has_track {
-                    "inspector.no_points"
+                .child(if has_track {
+                    tr("inspector.no_points")
                 } else {
-                    "inspector.plot_only_point"
-                }))
+                    tr("inspector.plot_only_point")
+                })
                 .into_any_element()
         };
         div()
@@ -580,7 +543,6 @@ impl Probe {
             .child(header)
             .child(tools)
             .when(self.table_columns_open, |root| root.child(columns))
-            .child(summary)
             .child(data)
             .into_any_element()
     }
@@ -640,13 +602,6 @@ impl Probe {
             .p_3()
             .bg(c(0x0d1420))
             .text_color(c(0xdbe6f5))
-            .child(
-                div()
-                    .flex_none()
-                    .text_xs()
-                    .text_color(c(0x7d8ca6))
-                    .child(tr("analysis.follow_selection")),
-            )
             .child(content)
             .when(self.plot_var_menu.is_some(), |root| {
                 root.child(

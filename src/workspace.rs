@@ -145,11 +145,11 @@ pub(crate) fn layout_controls(state: &State, cx: &mut Context<Probe>) -> impl In
             },
             format!(
                 "{} ({})",
-                tr(if state.left_open {
-                    "toolbar.collapse_workspace"
+                if state.left_open {
+                    tr("toolbar.collapse_workspace")
                 } else {
-                    "rail.expand_workspace"
-                }),
+                    tr("rail.expand_workspace")
+                },
                 sidebar_shortcut(true)
             ),
             26.,
@@ -168,11 +168,11 @@ pub(crate) fn layout_controls(state: &State, cx: &mut Context<Probe>) -> impl In
             },
             format!(
                 "{} ({})",
-                tr(if state.right_open {
-                    "inspector.collapse"
+                if state.right_open {
+                    tr("inspector.collapse")
                 } else {
-                    "rail.expand_inspector"
-                }),
+                    tr("rail.expand_inspector")
+                },
                 sidebar_shortcut(false)
             ),
             26.,
@@ -653,15 +653,7 @@ pub(crate) fn video_controls(
                 .child(right_label),
         );
 
-    let (playing, frame, last, time) = {
-        let st = state.borrow();
-        (
-            st.playing,
-            st.frame,
-            st.frame_count.saturating_sub(1),
-            st.current_time(),
-        )
-    };
+    let playing = state.borrow().playing;
     let buttons = [
         (Cmd::First, ICON_FIRST, tr("transport.first")),
         (Cmd::Back10, ICON_BACK10, tr("transport.back10")),
@@ -746,13 +738,7 @@ pub(crate) fn video_controls(
                 },
             )
         }))
-        .child(div().flex_1())
-        .child(
-            div()
-                .text_xs()
-                .text_color(c(0x7d8ca6))
-                .child(format!("frame {frame} / {last}   {}", format_time(time))),
-        );
+        .child(div().flex_1());
 
     div()
         .flex_none()

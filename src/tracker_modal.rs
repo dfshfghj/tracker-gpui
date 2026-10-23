@@ -195,12 +195,6 @@ fn dialog_actions(
             },
         ))
         .child(div().flex_1())
-        .child(div().text_xs().text_color(c(0x5f6f88)).child(t!(
-            "tracker_ui.policy",
-            search = data.settings.search_policy.label(),
-            stop = data.settings.stop_policy.label()
-        )
-        .to_string()))
         .into_any_element()
 }
 
@@ -230,7 +224,6 @@ fn dialog_preview(
             } else {
                 tr("tracker_ui.searching")
             },
-            frame = data.frame,
             points = data.points,
             score = score
         )
@@ -246,12 +239,6 @@ fn dialog_preview(
         .p_2()
         .rounded_sm()
         .bg(c(0x0a1018))
-        .child(
-            div()
-                .text_xs()
-                .text_color(c(0x8fa3bf))
-                .child(t!("tracker_ui.frame", frame = data.frame).to_string()),
-        )
         .child(tracker_thumb(tr("tracker_ui.template"), template))
         .child(div().text_xs().text_color(c(0x5f6f88)).child("="))
         .child(tracker_thumb(tr("tracker_ui.matched"), matched))
@@ -262,13 +249,7 @@ fn dialog_preview(
                 .flex()
                 .flex_col()
                 .gap_1()
-                .child(div().text_xs().text_color(info_color).child(info))
-                .child(div().text_xs().text_color(info_color).child(t!(
-                    "tracker_ui.match_hint",
-                    frame = data.frame,
-                    score = score
-                )
-                .to_string())),
+                .child(div().text_xs().text_color(info_color).child(info)),
         )
         .into_any_element()
 }
@@ -548,12 +529,7 @@ fn dialog_footer(
         footer = footer.child(div().text_xs().text_color(c(0xff6b6b)).child(error.clone()));
     }
     footer
-        .child(
-            div()
-                .text_xs()
-                .text_color(c(0x5f6f88))
-                .child(tr("tracker_ui.hint")),
-        )
+        .child(div().flex_1())
         .child(
             div()
                 .flex()

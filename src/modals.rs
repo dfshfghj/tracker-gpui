@@ -208,10 +208,7 @@ pub(crate) fn operations_modal_view(
             tr("help.move_keys"),
         ),
         (tr("help.select"), tr("help.select_keys")),
-        (
-            tr("help.object_props"),
-            tr("help.object_props_keys"),
-        ),
+        (tr("help.object_props"), tr("help.object_props_keys")),
         (
             tr("help.calib"),
             tr("help.calib_keys"),
@@ -237,14 +234,8 @@ pub(crate) fn operations_modal_view(
             tr("help.tabs"),
             tr("help.tabs_keys"),
         ),
-        (
-            tr("help.plot"),
-            tr("help.plot_keys"),
-        ),
-        (
-            tr("help.table"),
-            tr("help.table_keys"),
-        ),
+        (tr("help.plot"), tr("help.plot_keys")),
+        (tr("help.table"), tr("help.table_keys")),
         (
             tr("help.delete"),
             tr("help.delete_keys"),

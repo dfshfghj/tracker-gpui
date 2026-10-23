@@ -11,7 +11,7 @@ use crate::{
     c,
     i18n::tr,
     plot::PlotVar,
-    variables::{Variables, BUILTINS},
+    variables::Variables,
     State,
 };
 
@@ -229,25 +229,7 @@ impl Render for VariableEditor {
                     ),
             );
         }
-        let available = BUILTINS
-            .iter()
-            .filter(|(_, var)| var.available(&track))
-            .map(|(name, _)| *name)
-            .collect::<Vec<_>>()
-            .join(", ");
         body = body
-            .child(
-                div()
-                    .text_xs()
-                    .text_color(c(0x7d8ca6))
-                    .child(rust_i18n::t!("variables.inputs", detail = available).to_string()),
-            )
-            .child(
-                div()
-                    .text_xs()
-                    .text_color(c(0x7d8ca6))
-                    .child(tr("variables.help")),
-            )
             .child(
                 div()
                     .text_xs()

@@ -709,12 +709,16 @@ impl Render for Probe {
                     .text_color(c(0xc8d7f0))
                     .child({
                         let st = state.borrow();
-                        format!(
-                            "frame {} / {}   {:.0}%",
-                            st.frame,
-                            st.frame_count.saturating_sub(1),
-                            st.scale * 100.0
-                        )
+                        if st.video.is_some() {
+                            format!(
+                                "frame {} / {}   {:.0}%",
+                                st.frame,
+                                st.frame_count.saturating_sub(1),
+                                st.scale * 100.0
+                            )
+                        } else {
+                            String::new()
+                        }
                     }),
             )
             .child({
@@ -1598,7 +1602,7 @@ impl Render for Probe {
                         })
                         .when(st.selection != Selection::None, |this| {
                             this.child(section_header(
-                                tr("inspector.object_properties"),
+                                tr("inspector.selection"),
                                 SideSection::Object,
                                 state.clone(),
                                 cx,
@@ -1684,15 +1688,6 @@ impl Render for Probe {
                 )
                 .child(format!("draw {:.2} ms", st.draw_ms))
                 .child(format!("points {}", st.drawn_points))
-                .child(format!("zoom {:.0}%", st.scale * 100.0))
-                .child(format!(
-                    "frame {} / {}",
-                    st.frame,
-                    st.frame_count.saturating_sub(1)
-                ))
-                .child(format!("t {:.3}s", st.current_time()))
-                .child(format!("track {}", st.active + 1))
-                .child(format!("tool {}", st.tool.label()))
                 .when_some(
                     st.tracking
                         .as_ref()

@@ -50,31 +50,11 @@ pub enum SearchPolicy {
     Fixed,
 }
 
-impl SearchPolicy {
-    pub fn label(self) -> &'static str {
-        match self {
-            Self::LookAhead => "Look-Ahead",
-            Self::Follow => "Follow",
-            Self::Fixed => "Fixed",
-        }
-    }
-}
-
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum StopPolicy {
     StopOnPoor,
     StopOnNoMatch,
     Never,
-}
-
-impl StopPolicy {
-    pub fn label(self) -> &'static str {
-        match self {
-            Self::StopOnPoor => "Poor/No Match",
-            Self::StopOnNoMatch => "No Match",
-            Self::Never => "Never",
-        }
-    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

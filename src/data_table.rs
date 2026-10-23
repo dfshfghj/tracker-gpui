@@ -192,6 +192,7 @@ impl TableSelection {
         self.selected.contains(cell)
     }
 
+    #[cfg(test)]
     pub(crate) fn selected_rows(&self) -> usize {
         if self.selected.is_empty() {
             0

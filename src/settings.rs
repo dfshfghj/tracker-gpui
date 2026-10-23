@@ -40,6 +40,8 @@ pub(crate) struct SettingsWindow {
     focus: FocusHandle,
     focused_once: bool,
     scroll: ScrollHandle,
+    theme: Entity<SelectState<Vec<SettingsChoice>>>,
+    theme_value: String,
     language: Entity<SelectState<Vec<SettingsChoice>>>,
     language_value: String,
     copy_format: Entity<SelectState<Vec<SettingsChoice>>>,
@@ -56,6 +58,32 @@ impl SettingsWindow {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> Self {
+        let theme_value = match crate::theme::theme_mode() {
+            ThemeMode::Auto => "auto".to_string(),
+            ThemeMode::Light => "light".to_string(),
+            ThemeMode::Dark => "dark".to_string(),
+        };
+        let theme = cx.new(|cx| {
+            let mut select = SelectState::new(theme_choices(), None, window, cx);
+            select.set_selected_value(&theme_value, window, cx);
+            select
+        });
+        cx.subscribe(
+            &theme,
+            |this, _, event: &SelectEvent<Vec<SettingsChoice>>, cx| {
+                if let SelectEvent::Confirm(Some(value)) = event {
+                    let mode = match value.as_str() {
+                        "light" => ThemeMode::Light,
+                        "dark" => ThemeMode::Dark,
+                        _ => ThemeMode::Auto,
+                    };
+                    this.state.borrow_mut().apply_theme_mode(mode);
+                    crate::theme::sync_component_theme(cx);
+                    cx.refresh_windows();
+                }
+            },
+        )
+        .detach();
         let language_value = state.borrow().language_pref();
         let language = cx.new(|cx| {
             let mut select = SelectState::new(language_choices(), None, window, cx);
@@ -100,6 +128,8 @@ impl SettingsWindow {
             focus: cx.focus_handle(),
             focused_once: false,
             scroll: ScrollHandle::new(),
+            theme,
+            theme_value,
             language,
             language_value,
             copy_format,
@@ -269,6 +299,23 @@ impl SelectItem for SettingsChoice {
     }
 }
 
+fn theme_choices() -> Vec<SettingsChoice> {
+    vec![
+        SettingsChoice {
+            value: "auto".into(),
+            label: tr("menu.item.theme_auto"),
+        },
+        SettingsChoice {
+            value: "light".into(),
+            label: tr("menu.item.theme_light"),
+        },
+        SettingsChoice {
+            value: "dark".into(),
+            label: tr("menu.item.theme_dark"),
+        },
+    ]
+}
+
 fn language_choices() -> Vec<SettingsChoice> {
     crate::i18n::menu_entries()
         .into_iter()
@@ -300,54 +347,6 @@ fn wheel_action_label(action: WheelAction) -> String {
     }
 }
 
-/// One selectable chip: stored value, visible label, whether it is selected.
-type Chip = (String, String, bool);
-
-/// `Rc` because every chip needs its own copy of the callback.
-type Pick = Rc<dyn Fn(&mut SettingsWindow, &str, &mut Context<SettingsWindow>)>;
-
-fn chips(
-    id_base: usize,
-    items: Vec<Chip>,
-    cx: &mut Context<SettingsWindow>,
-    on_pick: Pick,
-) -> AnyElement {
-    let mut row = div()
-        .flex()
-        .items_center()
-        .flex_wrap()
-        .gap_1()
-        .justify_end();
-    for (index, (value, label, active)) in items.into_iter().enumerate() {
-        let pick = on_pick.clone();
-        row = row.child(
-            div()
-                .id(("settings-chip", id_base + index))
-                .px_2()
-                .py_0p5()
-                .rounded_sm()
-                .text_xs()
-                .cursor_pointer()
-                .bg(if active { c(CHIP_ACTIVE) } else { c(CHIP) })
-                .text_color(if active {
-                    c(CHIP_ACTIVE_TEXT)
-                } else {
-                    c(CHIP_TEXT)
-                })
-                .hover(|style| style.bg(c(CHIP_HOVER)))
-                .on_mouse_down(
-                    MouseButton::Left,
-                    cx.listener(move |this, _ev, _window, cx| {
-                        let value = value.clone();
-                        pick(this, &value, cx);
-                    }),
-                )
-                .child(label),
-        );
-    }
-    row.into_any_element()
-}
-
 /// Section title with the hairline divider Zed puts under it.
 fn section_header(title: String) -> AnyElement {
     div()
@@ -366,7 +365,7 @@ fn section_header(title: String) -> AnyElement {
 }
 
 /// One setting row: title + description on the left, control on the right.
-fn setting_row(title: String, description: String, control: AnyElement, last: bool) -> AnyElement {
+fn setting_row(title: String, control: AnyElement, last: bool) -> AnyElement {
     let mut row = div()
         .flex()
         .items_center()
@@ -380,8 +379,7 @@ fn setting_row(title: String, description: String, control: AnyElement, last: bo
                 .gap_0p5()
                 .flex_1()
                 .min_w(px(0.))
-                .child(div().text_sm().text_color(c(TEXT)).child(title))
-                .child(div().text_xs().text_color(c(MUTED)).child(description)),
+                .child(div().text_sm().text_color(c(TEXT)).child(title)),
         )
         .child(div().flex_none().child(control));
     if !last {
@@ -468,41 +466,29 @@ impl Render for SettingsWindow {
             (theme_mode(), st.language_pref(), st.prefs.wheel.clone())
         };
 
-        // ---- appearance ----
-        let theme_chips = chips(
-            700,
-            [
-                ("auto", ThemeMode::Auto),
-                ("light", ThemeMode::Light),
-                ("dark", ThemeMode::Dark),
-            ]
-            .into_iter()
-            .map(|(value, mode)| {
-                let label = match mode {
-                    ThemeMode::Auto => tr("menu.item.theme_auto"),
-                    ThemeMode::Light => tr("menu.item.theme_light"),
-                    ThemeMode::Dark => tr("menu.item.theme_dark"),
-                };
-                (value.to_string(), label, theme == mode)
-            })
-            .collect(),
-            cx,
-            Rc::new(
-                |this: &mut SettingsWindow, value: &str, cx: &mut Context<SettingsWindow>| {
-                    let mode = match value {
-                        "light" => ThemeMode::Light,
-                        "dark" => ThemeMode::Dark,
-                        _ => ThemeMode::Auto,
-                    };
-                    this.state.borrow_mut().apply_theme_mode(mode);
-                    crate::theme::sync_component_theme(cx);
-                    cx.refresh_windows();
-                },
-            ),
-        );
+        // A language switch rebuilds every dropdown, since their labels are
+        // translated strings baked in at construction time.
+        let language_changed = self.language_value != language;
+
+        // ---- theme ----
+        let theme_value = match theme {
+            ThemeMode::Auto => "auto".to_string(),
+            ThemeMode::Light => "light".to_string(),
+            ThemeMode::Dark => "dark".to_string(),
+        };
+        if self.theme_value != theme_value || language_changed {
+            self.theme.update(cx, |select, cx| {
+                select.set_items(theme_choices(), window, cx);
+                select.set_selected_value(&theme_value, window, cx);
+            });
+            self.theme_value = theme_value;
+        }
+        let theme_select = Select::new(&self.theme)
+            .small()
+            .w(px(190.))
+            .into_any_element();
 
         // ---- language ----
-        let language_changed = self.language_value != language;
         if language_changed {
             self.language.update(cx, |select, cx| {
                 select.set_items(language_choices(), window, cx);
@@ -527,33 +513,26 @@ impl Render for SettingsWindow {
             .w(px(190.))
             .into_any_element();
         // ---- wheel bindings ----
-        let wheel_row = |id: usize,
-                         title: &str,
-                         description: &str,
-                         action: WheelAction,
-                         cx: &mut Context<Self>| {
+        let wheel_row = |id: usize, title: &str, action: WheelAction, cx: &mut Context<Self>| {
             let control = self.wheel_control(id, action, &wheel, cx);
-            setting_row(title.into(), description.into(), control, false)
+            setting_row(title.into(), control, false)
         };
         let wheel_rows = vec![
             wheel_row(
                 720,
                 &tr("settings.wheel.vertical"),
-                &tr("settings.wheel.vertical_desc"),
                 WheelAction::PanVertical,
                 cx,
             ),
             wheel_row(
                 730,
                 &tr("settings.wheel.horizontal"),
-                &tr("settings.wheel.horizontal_desc"),
                 WheelAction::PanHorizontal,
                 cx,
             ),
             wheel_row(
                 740,
                 &tr("settings.wheel.zoom"),
-                &tr("settings.wheel.zoom_desc"),
                 WheelAction::Zoom,
                 cx,
             ),
@@ -563,14 +542,6 @@ impl Render for SettingsWindow {
                 .justify_between()
                 .gap_3()
                 .py_2()
-                .child(
-                    div()
-                        .flex_1()
-                        .min_w(px(0.))
-                        .text_xs()
-                        .text_color(c(FAINT))
-                        .child(tr("settings.wheel.hint")),
-                )
                 .child(
                     div()
                         .id("settings-wheel-reset")
@@ -653,44 +624,21 @@ impl Render for SettingsWindow {
                     .pt_4()
                     .pb_6()
                     .child(section(
-                        tr("settings.appearance"),
-                        vec![setting_row(
-                            tr("settings.theme"),
-                            tr("settings.theme_desc"),
-                            theme_chips,
-                            true,
-                        )],
-                    ))
-                    .child(section(
-                        tr("settings.language"),
-                        vec![setting_row(
-                            tr("settings.language"),
-                            tr("settings.language_desc"),
-                            language_select,
-                            true,
-                        )],
+                        tr("settings.interface"),
+                        vec![
+                            setting_row(tr("settings.theme"), theme_select, false),
+                            setting_row(tr("settings.language"), language_select, true),
+                        ],
                     ))
                     .child(section(
                         tr("settings.data_table"),
                         vec![setting_row(
                             tr("settings.copy_format"),
-                            tr("settings.copy_format_desc"),
                             copy_format_select,
                             true,
                         )],
                     ))
-                    .child(section(tr("settings.mouse_wheel"), wheel_rows))
-                    .child(
-                        div().text_xs().text_color(c(FAINT)).child(
-                            t!("settings.saved_hint", path = prefs_path_label()).to_string(),
-                        ),
-                    ),
+                    .child(section(tr("settings.mouse_wheel"), wheel_rows)),
             )
     }
-}
-
-fn prefs_path_label() -> String {
-    crate::prefs::Preferences::path()
-        .map(|path| path.display().to_string())
-        .unwrap_or_default()
 }

@@ -244,6 +244,9 @@ impl Tool {
         matches!(self, Tool::Tape | Tool::Protractor | Tool::Circle)
     }
 
+    /// Canonical name of the active tool. Not rendered right now (the status
+    /// bar was trimmed), but kept as the single source for tool names.
+    #[allow(dead_code)]
     fn label(self) -> String {
         match self {
             Tool::Move => t!("tool.move"),
@@ -708,7 +711,7 @@ mod i18n_tests {
         use crate::i18n;
 
         rust_i18n::set_locale("en");
-        assert_eq!(i18n::tr("menu.item.save"), "Save");
+        assert_eq!(i18n::tr("dlg.save"), "Save");
         assert_eq!(i18n::tr("tool.tape"), "Measuring Tape");
         assert_eq!(
             rust_i18n::t!("menu.item.step", n = 3, sign = "+"),
@@ -716,7 +719,7 @@ mod i18n_tests {
         );
 
         rust_i18n::set_locale("zh-CN");
-        assert_eq!(i18n::tr("menu.item.save"), "保存");
+        assert_eq!(i18n::tr("dlg.save"), "保存");
         assert_eq!(i18n::tr("tool.tape"), "测量尺");
         assert_eq!(
             rust_i18n::t!("menu.item.step", n = 3, sign = "+"),

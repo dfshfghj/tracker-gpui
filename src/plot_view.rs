@@ -2,6 +2,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use gpui_component::scroll::ScrollableElement;
+use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::*;
 
 use crate::i18n::tr;
@@ -319,14 +320,18 @@ pub(crate) fn plot_sidebar(
                         .text_color(c(0x7d8ca6))
                         .child(format!("{} · {}", prepared.name, prepared.kind)),
                 )
-                .child(plot_chip(0, tr("plot.one"), count == 1, cx, |this, cx| {
-                    this.state.borrow_mut().set_plot_count(1);
-                    crate::analysis::notify_workspace_windows(cx);
-                }))
-                .child(plot_chip(1, tr("plot.two"), count == 2, cx, |this, cx| {
-                    this.state.borrow_mut().set_plot_count(2);
-                    crate::analysis::notify_workspace_windows(cx);
-                })),
+                // A detached window shows exactly one plot, so the 1/2 switch
+                // only makes sense in the sidebar.
+                .when(only.is_none(), |this| {
+                    this.child(plot_chip(0, tr("plot.one"), count == 1, cx, |this, cx| {
+                        this.state.borrow_mut().set_plot_count(1);
+                        crate::analysis::notify_workspace_windows(cx);
+                    }))
+                    .child(plot_chip(1, tr("plot.two"), count == 2, cx, |this, cx| {
+                        this.state.borrow_mut().set_plot_count(2);
+                        crate::analysis::notify_workspace_windows(cx);
+                    }))
+                }),
         )
         .child(
             div()
@@ -574,13 +579,7 @@ pub(crate) fn plot_chart(
                             this.open_analysis_window(crate::analysis::Pane::Plot(index), cx)
                         }
                     },
-                ))
-                .child(
-                    div()
-                        .text_xs()
-                        .text_color(c(0x5f6f88))
-                        .child(t!("plot.point_count", n = points.points.len()).to_string()),
-                ),
+                )),
         )
         .child(
             div()
