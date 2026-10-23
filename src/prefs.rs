@@ -107,6 +107,12 @@ fn default_theme() -> String {
 
 impl Preferences {
     pub fn path() -> Option<PathBuf> {
+        if cfg!(test) {
+            return Some(std::env::temp_dir().join(format!(
+                "tracker-gpui-tests-{}/preferences.json",
+                std::process::id()
+            )));
+        }
         ProjectDirs::from("org", "opensourcephysics", "tracker-gpui")
             .map(|dirs| dirs.config_dir().join("preferences.json"))
     }

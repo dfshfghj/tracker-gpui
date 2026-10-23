@@ -1575,7 +1575,9 @@ pub(crate) fn request_save_impl(
     cx: &mut Context<Probe>,
 ) {
     if !force_as {
-        if let Some(path) = state.borrow().project_path.clone() {
+        // Release the read borrow before saving or executing the follow-up action.
+        let project_path = state.borrow().project_path.clone();
+        if let Some(path) = project_path {
             let result = state.borrow_mut().save_project_to(&path);
             match result {
                 Ok(()) => perform_save_action(&state, action, cx),
@@ -1728,3 +1730,63 @@ pub(crate) fn set_native_owner(hwnd: isize, owner: isize) {
 
 #[cfg(not(target_os = "windows"))]
 pub(crate) fn set_native_owner(_hwnd: isize, _owner: isize) {}
+
+#[cfg(test)]
+mod save_tests {
+    use super::*;
+    use ::gpui;
+    use core::prelude::v1::test;
+
+    #[gpui::test]
+    fn saving_opened_project_releases_borrows_before_save_and_follow_up(cx: &mut TestAppContext) {
+        let directory = std::env::temp_dir().join(format!(
+            "tracker-gpui-save-test-{}",
+            std::process::id()
+        ));
+        std::fs::create_dir_all(&directory).unwrap();
+        let path = directory.join("opened.tgp");
+        ProjectFile::new(None, 0, vec![]).save(&path).unwrap();
+        let mut state = State::with_preferences(Preferences::default());
+        state.prepare_project_load(ProjectFile::load(&path).unwrap(), path.clone());
+        let state = Rc::new(RefCell::new(state));
+        let probe = cx.new(|cx| {
+            Probe::analysis_instance(
+                state.clone(),
+                None,
+                Rc::new(RefCell::new(crate::analysis::PaneWindows::default())),
+                cx,
+            )
+        });
+        let make_dirty = || {
+            let mut state = state.borrow_mut();
+            state.coords.base.origin[0] += 1.;
+            let snapshot = state.snapshot();
+            state.history.record(snapshot);
+            assert!(state.has_dirty_docs());
+        };
+
+        make_dirty();
+        probe.update(cx, |_, cx| request_save(state.clone(), SaveAction::None, cx));
+        assert!(ProjectFile::load(&path).is_ok());
+        assert_eq!(state.borrow().project_path.as_ref(), Some(&path));
+        assert!(!state.borrow().has_dirty_docs());
+        assert!(state.borrow().modal.is_none());
+
+        // A write failure must report an error and preserve unsaved work.
+        make_dirty();
+        state.borrow_mut().project_path = Some(directory.clone());
+        probe.update(cx, |_, cx| request_save(state.clone(), SaveAction::NewProject, cx));
+        assert!(matches!(state.borrow().modal, Some(Modal::Error(_))));
+        assert!(state.borrow().has_dirty_docs());
+        assert_eq!(state.borrow().project_path.as_ref(), Some(&directory));
+
+        state.borrow_mut().project_path = Some(path.clone());
+        probe.update(cx, |_, cx| request_save(state.clone(), SaveAction::NewProject, cx));
+        assert!(state.borrow().project_path.is_none());
+        assert!(state.borrow().modal.is_none());
+        assert!(!state.borrow().has_dirty_docs());
+        assert!(ProjectFile::load(&path).is_ok());
+        std::fs::remove_file(path).unwrap();
+        std::fs::remove_dir(directory).unwrap();
+    }
+}
